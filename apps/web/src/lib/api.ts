@@ -35,6 +35,14 @@ export type Room = {
   amenities: Amenity[];
 };
 
+export type StaffRoom = Room & {
+  active: boolean;
+};
+
+export type StaffRoomsResponse = {
+  rooms: StaffRoom[];
+};
+
 export type Photo = {
   id: string;
   url: string;

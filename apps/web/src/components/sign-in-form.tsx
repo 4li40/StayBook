@@ -29,8 +29,10 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         },
         {
           onSuccess: () => {
-            navigate({
-              to: "/dashboard",
+            void authClient.getSession().then((session) => {
+              navigate({
+                to: session.data?.user.role === "staff" ? "/staff" : "/dashboard",
+              });
             });
             toast.success("Sign in successful");
           },

@@ -40,12 +40,12 @@ describe("isMoreThan24HoursBeforeCheckIn", () => {
   it("returns true when check-in is more than 24 hours away", () => {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 2);
-    const dateStr = futureDate.toISOString().split("T")[0];
+    const dateStr = futureDate.toISOString().split("T")[0]!;
     expect(isMoreThan24HoursBeforeCheckIn(dateStr)).toBe(true);
   });
 
   it("returns false when check-in is within 24 hours", () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0]!;
     expect(isMoreThan24HoursBeforeCheckIn(today)).toBe(false);
   });
 });

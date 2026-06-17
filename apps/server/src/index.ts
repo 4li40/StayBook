@@ -7,6 +7,7 @@ import express from "express";
 import { errorHandler } from "./api/http";
 import { reservationsRouter } from "./api/routes/reservations";
 import { roomsRouter } from "./api/routes/rooms";
+import { staffRouter } from "./api/routes/staff";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use(express.json());
 
 app.use("/api/rooms", roomsRouter);
 app.use("/api/reservations", reservationsRouter);
+app.use("/api/staff", staffRouter);
 
 app.get("/", (_req, res) => {
   res.status(200).send("OK");

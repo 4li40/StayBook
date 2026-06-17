@@ -61,6 +61,17 @@ export function requireGuest(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
+export function requireStaff(req: Request, _res: Response, next: NextFunction) {
+  const role = req.authSession?.user.role;
+
+  if (role !== "staff") {
+    next(new ApiError(403, "FORBIDDEN", "A staff account is required."));
+    return;
+  }
+
+  next();
+}
+
 export function getAuthenticatedUser(req: Request) {
   if (!req.authSession) {
     throw new ApiError(401, "UNAUTHORIZED", "Authentication is required.");

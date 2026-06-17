@@ -36,13 +36,26 @@ This project uses PostgreSQL with Drizzle ORM.
 npm run db:migrate
 ```
 
+4. Seed room inventory and the reviewer staff account:
+
+```bash
+npm run db:seed
+```
+
+Seeded staff credentials:
+
+```txt
+Email: staff@staybook.test
+Password: StayBook123!
+```
+
 Then, run the development server:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser to see the web application.
+Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
 The API is running at [http://localhost:3000](http://localhost:3000).
 
 ## UI Customization
@@ -94,4 +107,5 @@ StayBook/
 - `npm run db:push`: Push schema changes to database for quick local experiments. Do not use this for normal setup because migrations include hand-written constraints.
 - `npm run db:generate`: Generate database client/types
 - `npm run db:migrate`: Run database migrations
+- `npm run db:seed`: Seed rooms, amenities, and the reviewer staff account
 - `npm run db:studio`: Open database studio UI

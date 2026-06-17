@@ -19,6 +19,12 @@
       "skillPath": "skills/neon-postgres/SKILL.md",
       "computedHash": "04b1701aa7be7ead8936a5455c9e448b71a6fb008001d8795b5d3cdca8008863"
     },
+    "nodejs-express-server": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "skillPath": "skills/nodejs-express-server/SKILL.md",
+      "computedHash": "94af4eda308df6d27b94cc866de0d3d857755c91da01808d3d8130d91ebaf231"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",

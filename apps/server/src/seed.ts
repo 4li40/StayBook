@@ -1,10 +1,14 @@
+import { auth } from "@StayBook/auth";
 import { db } from "@StayBook/db";
 import {
   amenities,
   roomAmenities,
   roomPhotos,
   rooms,
+  user,
 } from "@StayBook/db/schema";
+import { env } from "@StayBook/env/server";
+import { eq } from "drizzle-orm";
 
 const AMENITIES = [
   "Wi-Fi",
@@ -143,7 +147,46 @@ const ROOM_AMENITY_MAP: Record<string, string[]> = {
   ],
 };
 
+const STAFF_USER = {
+  name: "StayBook Staff",
+  email: "staff@staybook.test",
+  password: "StayBook123!",
+};
+
+async function seedStaffUser() {
+  const normalizedEmail = STAFF_USER.email.toLowerCase();
+  const existingStaff = await db.query.user.findFirst({
+    where: eq(user.email, normalizedEmail),
+  });
+
+  if (!existingStaff) {
+    await auth.api.signUpEmail({
+      body: {
+        name: STAFF_USER.name,
+        email: normalizedEmail,
+        password: STAFF_USER.password,
+      },
+      headers: new Headers({
+        origin: env.CORS_ORIGIN,
+        host: new URL(env.BETTER_AUTH_URL).host,
+      }),
+    });
+  }
+
+  await db
+    .update(user)
+    .set({
+      name: STAFF_USER.name,
+      role: "staff",
+      emailVerified: true,
+    })
+    .where(eq(user.email, normalizedEmail));
+}
+
 async function seed() {
+  console.log("Seeding staff user...");
+  await seedStaffUser();
+
   console.log("Seeding amenities...");
   const insertedAmenities = await db
     .insert(amenities)
@@ -190,6 +233,7 @@ async function seed() {
     .onConflictDoNothing();
 
   console.log("Seed complete!");
+  console.log(`  Staff: ${STAFF_USER.email} / ${STAFF_USER.password}`);
   console.log(`  Amenities: ${allAmenities.length} (inserted ${insertedAmenities.length})`);
   console.log(`  Rooms: ${allRooms.length} (inserted ${insertedRooms.length})`);
   console.log(`  Photos: ${photoValues.length}`);
