@@ -563,6 +563,15 @@ function RouteComponent() {
                         <X />
                       </Button>
                     </div>
+                    {photo.url.trim() ? (
+                      <div className="aspect-[16/9] overflow-hidden rounded-lg bg-muted">
+                        <img
+                          src={photo.url.trim()}
+                          alt={photo.altText.trim() || "Room photo preview"}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <Input
                       value={photo.url}
                       onChange={(event) => updatePhoto(index, { url: event.target.value })}
@@ -629,13 +638,26 @@ function RouteComponent() {
             ? rooms.map((room) => (
                 <Card key={room.id}>
                   <CardHeader>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="flex min-w-0 flex-col gap-1.5">
-                        <CardTitle>{room.name}</CardTitle>
-                        <CardDescription className="capitalize">
-                          {room.type} · up to {room.maxGuests} guests ·{" "}
-                          {moneyFormatter.format(Number(room.nightlyPrice))} / night
-                        </CardDescription>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
+                        <div className="flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted sm:w-40">
+                          {room.primaryPhotoUrl ? (
+                            <img
+                              src={room.primaryPhotoUrl}
+                              alt={room.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <BedDouble aria-hidden="true" className="text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <CardTitle>{room.name}</CardTitle>
+                          <CardDescription className="capitalize">
+                            {room.type} · up to {room.maxGuests} guests ·{" "}
+                            {moneyFormatter.format(Number(room.nightlyPrice))} / night
+                          </CardDescription>
+                        </div>
                       </div>
                       <div className="flex w-fit items-center gap-1.5 rounded-lg border border-border/70 px-2.5 py-1 text-sm">
                         {room.active ? (
