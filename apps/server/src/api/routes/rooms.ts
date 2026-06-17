@@ -11,6 +11,14 @@ type AmenitySummary = {
   name: string;
 };
 
+type PhotoRow = {
+  id: string;
+  url: string;
+  altText: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
+};
+
 type RoomListRow = {
   id: string;
   name: string;
@@ -19,6 +27,17 @@ type RoomListRow = {
   maxGuests: number;
   nightlyPrice: string;
   primaryPhotoUrl: string | null;
+  amenities: AmenitySummary[];
+};
+
+type RoomDetailRow = {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  maxGuests: number;
+  nightlyPrice: string;
+  photos: PhotoRow[];
   amenities: AmenitySummary[];
 };
 
@@ -138,6 +157,62 @@ roomsRouter.get(
         ...room,
         amenities: Array.isArray(room.amenities) ? room.amenities : [],
       })),
+    });
+  }),
+);
+
+roomsRouter.get(
+  "/:roomId",
+  asyncHandler(async (req, res) => {
+    const params = roomParamsSchema.parse(req.params);
+
+    const result = await db.execute<RoomDetailRow>(sql`
+      select
+        room.id,
+        room.name,
+        room.type,
+        room.description,
+        room.max_guests as "maxGuests",
+        room.nightly_price as "nightlyPrice",
+        coalesce(
+          json_agg(
+            distinct jsonb_build_object(
+              'id', photo.id,
+              'url', photo.url,
+              'altText', photo.alt_text,
+              'isPrimary', photo.is_primary,
+              'sortOrder', photo.sort_order
+            )
+          ) filter (where photo.id is not null),
+          '[]'::json
+        ) as photos,
+        coalesce(
+          json_agg(
+            distinct jsonb_build_object('id', amenity.id, 'name', amenity.name)
+          ) filter (where amenity.id is not null),
+          '[]'::json
+        ) as amenities
+      from rooms room
+      left join room_photos photo
+        on photo.room_id = room.id
+      left join room_amenities room_amenity
+        on room_amenity.room_id = room.id
+      left join amenities amenity
+        on amenity.id = room_amenity.amenity_id
+      where room.id = ${params.roomId}::uuid
+      group by room.id
+      limit 1
+    `);
+
+    const room = result.rows[0];
+    if (!room) {
+      throw new ApiError(404, "NOT_FOUND", "Room was not found.");
+    }
+
+    sendData(res, {
+      ...room,
+      photos: Array.isArray(room.photos) ? room.photos.sort((a, b) => a.sortOrder - b.sortOrder) : [],
+      amenities: Array.isArray(room.amenities) ? room.amenities : [],
     });
   }),
 );
