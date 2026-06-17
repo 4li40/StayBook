@@ -37,10 +37,15 @@ export type Room = {
 
 export type StaffRoom = Room & {
   active: boolean;
+  photos: Photo[];
 };
 
 export type StaffRoomsResponse = {
   rooms: StaffRoom[];
+};
+
+export type StaffAmenitiesResponse = {
+  amenities: Amenity[];
 };
 
 export type Photo = {
@@ -60,6 +65,26 @@ export type RoomDetail = {
   nightlyPrice: string;
   photos: Photo[];
   amenities: Amenity[];
+};
+
+export type StaffRoomPhotoInput = {
+  url: string;
+  altText?: string;
+  isPrimary?: boolean;
+};
+
+export type StaffRoomInput = {
+  name: string;
+  type: string;
+  description: string;
+  maxGuests: number;
+  nightlyPrice: number;
+  amenityIds: string[];
+  photos: StaffRoomPhotoInput[];
+};
+
+export type StaffRoomResponse = {
+  room: StaffRoom;
 };
 
 export type ReservationStatus = "confirmed" | "cancelled";

@@ -1,21 +1,42 @@
-import { BadgeCheck, BedDouble, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-
 import { Button } from "@StayBook/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@StayBook/ui/components/card";
+import { Checkbox } from "@StayBook/ui/components/checkbox";
+import { Input } from "@StayBook/ui/components/input";
+import { Label } from "@StayBook/ui/components/label";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
+import { Textarea } from "@StayBook/ui/components/textarea";
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  BedDouble,
+  Check,
+  CircleOff,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
+  ApiClientError,
   apiRequest,
   getErrorMessage,
+  type Amenity,
+  type StaffAmenitiesResponse,
   type StaffRoom,
+  type StaffRoomInput,
+  type StaffRoomResponse,
   type StaffRoomsResponse,
 } from "@/lib/api";
 
@@ -23,24 +44,112 @@ export const Route = createFileRoute("/_staff/staff")({
   component: RouteComponent,
 });
 
+type PhotoFormState = {
+  url: string;
+  altText: string;
+  isPrimary: boolean;
+};
+
+type RoomFormState = {
+  name: string;
+  type: string;
+  description: string;
+  maxGuests: string;
+  nightlyPrice: string;
+  amenityIds: string[];
+  photos: PhotoFormState[];
+};
+
+type FieldErrors = Partial<Record<keyof RoomFormState | "form", string>>;
+
+const emptyRoomForm: RoomFormState = {
+  name: "",
+  type: "",
+  description: "",
+  maxGuests: "2",
+  nightlyPrice: "",
+  amenityIds: [],
+  photos: [],
+};
+
 const moneyFormatter = new Intl.NumberFormat(undefined, {
   style: "currency",
   currency: "USD",
 });
 
+function roomToForm(room: StaffRoom): RoomFormState {
+  return {
+    name: room.name,
+    type: room.type,
+    description: room.description,
+    maxGuests: String(room.maxGuests),
+    nightlyPrice: String(Number(room.nightlyPrice)),
+    amenityIds: room.amenities.map((amenity) => amenity.id),
+    photos: room.photos.map((photo) => ({
+      url: photo.url,
+      altText: photo.altText ?? "",
+      isPrimary: photo.isPrimary,
+    })),
+  };
+}
+
+function toPayload(form: RoomFormState): StaffRoomInput {
+  return {
+    name: form.name.trim(),
+    type: form.type.trim(),
+    description: form.description.trim(),
+    maxGuests: Number(form.maxGuests),
+    nightlyPrice: Number(form.nightlyPrice),
+    amenityIds: form.amenityIds,
+    photos: form.photos
+      .map((photo) => ({
+        url: photo.url.trim(),
+        altText: photo.altText.trim() || undefined,
+        isPrimary: photo.isPrimary,
+      }))
+      .filter((photo) => photo.url.length > 0),
+  };
+}
+
+function collectFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ApiClientError)) {
+    return {};
+  }
+
+  return (error.issues ?? []).reduce<FieldErrors>((fieldErrors, issue) => {
+    const field = issue.path.split(".")[0] as keyof RoomFormState;
+
+    if (field in emptyRoomForm && !fieldErrors[field]) {
+      fieldErrors[field] = issue.message;
+    }
+
+    return fieldErrors;
+  }, {});
+}
+
 function RouteComponent() {
   const { session } = Route.useRouteContext();
   const [rooms, setRooms] = useState<StaffRoom[]>([]);
+  const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [actionRoomId, setActionRoomId] = useState<string | null>(null);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [form, setForm] = useState<RoomFormState>(emptyRoomForm);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadRooms = useCallback(async () => {
+  const loadInventory = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const data = await apiRequest<StaffRoomsResponse>("/api/staff/rooms");
-      setRooms(data.rooms);
+      const [roomsData, amenitiesData] = await Promise.all([
+        apiRequest<StaffRoomsResponse>("/api/staff/rooms"),
+        apiRequest<StaffAmenitiesResponse>("/api/staff/amenities"),
+      ]);
+      setRooms(roomsData.rooms);
+      setAmenities(amenitiesData.amenities);
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
     } finally {
@@ -49,116 +158,521 @@ function RouteComponent() {
   }, []);
 
   useEffect(() => {
-    loadRooms();
-  }, [loadRooms]);
+    loadInventory();
+  }, [loadInventory]);
 
-  const activeCount = rooms.filter((room) => room.active).length;
+  const activeCount = useMemo(
+    () => rooms.reduce((count, room) => count + (room.active ? 1 : 0), 0),
+    [rooms],
+  );
+  const inactiveCount = rooms.length - activeCount;
   const staffUser = session.data?.user;
+  const editingRoom = editingRoomId
+    ? rooms.find((room) => room.id === editingRoomId)
+    : null;
 
   if (!staffUser) {
     return null;
   }
 
+  function updateForm<Key extends keyof RoomFormState>(
+    key: Key,
+    value: RoomFormState[Key],
+  ) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+  }
+
+  function startCreate() {
+    setEditingRoomId(null);
+    setForm(emptyRoomForm);
+    setFieldErrors({});
+  }
+
+  function startEdit(room: StaffRoom) {
+    setEditingRoomId(room.id);
+    setForm(roomToForm(room));
+    setFieldErrors({});
+  }
+
+  function toggleAmenity(amenityId: string, checked: boolean) {
+    updateForm(
+      "amenityIds",
+      checked
+        ? [...form.amenityIds, amenityId]
+        : form.amenityIds.filter((id) => id !== amenityId),
+    );
+  }
+
+  function addPhoto() {
+    updateForm("photos", [
+      ...form.photos,
+      {
+        url: "",
+        altText: "",
+        isPrimary: form.photos.length === 0,
+      },
+    ]);
+  }
+
+  function updatePhoto(index: number, nextPhoto: Partial<PhotoFormState>) {
+    updateForm(
+      "photos",
+      form.photos.map((photo, photoIndex) =>
+        photoIndex === index ? { ...photo, ...nextPhoto } : photo,
+      ),
+    );
+  }
+
+  function removePhoto(index: number) {
+    const nextPhotos = form.photos.filter((_, photoIndex) => photoIndex !== index);
+    if (nextPhotos.length > 0 && !nextPhotos.some((photo) => photo.isPrimary)) {
+      nextPhotos[0] = { ...nextPhotos[0], isPrimary: true };
+    }
+    updateForm("photos", nextPhotos);
+  }
+
+  function setPrimaryPhoto(index: number) {
+    updateForm(
+      "photos",
+      form.photos.map((photo, photoIndex) => ({
+        ...photo,
+        isPrimary: photoIndex === index,
+      })),
+    );
+  }
+
+  async function saveRoom() {
+    setIsSaving(true);
+    setFieldErrors({});
+
+    try {
+      const payload = toPayload(form);
+      const path = editingRoomId
+        ? `/api/staff/rooms/${editingRoomId}`
+        : "/api/staff/rooms";
+      const method = editingRoomId ? "PATCH" : "POST";
+
+      await apiRequest<StaffRoomResponse>(path, {
+        method,
+        body: JSON.stringify(payload),
+      });
+
+      toast.success(editingRoomId ? "Room updated." : "Room created.");
+      await loadInventory();
+      startCreate();
+    } catch (error) {
+      setFieldErrors({
+        ...collectFieldErrors(error),
+        form: getErrorMessage(error),
+      });
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function setRoomActive(room: StaffRoom, active: boolean) {
+    const confirmed = window.confirm(
+      `${active ? "Reactivate" : "Deactivate"} ${room.name}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionRoomId(room.id);
+
+    try {
+      await apiRequest<StaffRoomResponse>(
+        `/api/staff/rooms/${room.id}/${active ? "reactivate" : "deactivate"}`,
+        { method: "POST" },
+      );
+      toast.success(active ? "Room reactivated." : "Room deactivated.");
+      await loadInventory();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setActionRoomId(null);
+    }
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-heading text-foreground tracking-tight text-balance">
             Staff Inventory
           </h1>
           <p className="text-sm text-muted-foreground">
-            Welcome, {staffUser.name}. Review active and inactive room inventory.
+            Welcome, {staffUser.name}. Create, edit, pause, and restore room inventory.
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={loadRooms} disabled={isLoading}>
-          <RefreshCw data-icon="inline-start" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={loadInventory} disabled={isLoading}>
+            <RefreshCw data-icon="inline-start" />
+            Refresh
+          </Button>
+          <Button type="button" onClick={startCreate}>
+            <Plus data-icon="inline-start" />
+            Add Room
+          </Button>
+        </div>
       </section>
 
       {errorMessage ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {errorMessage}
         </div>
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="space-y-1">
+          <CardHeader className="gap-1">
             <CardDescription>Total Rooms</CardDescription>
-            <CardTitle className="text-3xl">{rooms.length}</CardTitle>
+            <CardTitle className="text-3xl tabular-nums">{rooms.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
-          <CardHeader className="space-y-1">
+          <CardHeader className="gap-1">
             <CardDescription>Active Rooms</CardDescription>
-            <CardTitle className="text-3xl">{activeCount}</CardTitle>
+            <CardTitle className="text-3xl tabular-nums">{activeCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
-          <CardHeader className="space-y-1">
+          <CardHeader className="gap-1">
             <CardDescription>Inactive Rooms</CardDescription>
-            <CardTitle className="text-3xl">{rooms.length - activeCount}</CardTitle>
+            <CardTitle className="text-3xl tabular-nums">{inactiveCount}</CardTitle>
           </CardHeader>
         </Card>
       </section>
 
-      <section className="flex flex-col gap-4" aria-live="polite">
-        {isLoading
-          ? Array.from({ length: 4 }).map((_, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <Skeleton className="h-5 w-1/3" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                </CardContent>
-              </Card>
-            ))
-          : null}
+      <section className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingRoom ? "Edit Room" : "Add Room"}</CardTitle>
+            <CardDescription>
+              {editingRoom
+                ? `Editing ${editingRoom.name}`
+                : "Create a staff-managed room record."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex flex-col gap-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveRoom();
+              }}
+            >
+              {fieldErrors.form ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  {fieldErrors.form}
+                </div>
+              ) : null}
 
-        {!isLoading && rooms.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-10 text-center">
-            <BedDouble aria-hidden="true" className="size-10 text-muted-foreground" />
-            <div className="flex flex-col gap-1.5">
-              <h2 className="font-heading text-lg text-foreground">No Rooms Yet</h2>
-              <p className="text-sm text-muted-foreground">
-                Room inventory will appear here after seeding or staff creation.
-              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="room-name">Name</Label>
+                  <Input
+                    id="room-name"
+                    value={form.name}
+                    onChange={(event) => updateForm("name", event.target.value)}
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    placeholder="Deluxe King Suite"
+                  />
+                  {fieldErrors.name ? (
+                    <p className="text-xs text-destructive">{fieldErrors.name}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="room-type">Type</Label>
+                  <Input
+                    id="room-type"
+                    value={form.type}
+                    onChange={(event) => updateForm("type", event.target.value)}
+                    aria-invalid={Boolean(fieldErrors.type)}
+                    placeholder="suite"
+                  />
+                  {fieldErrors.type ? (
+                    <p className="text-xs text-destructive">{fieldErrors.type}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="room-description">Description</Label>
+                <Textarea
+                  id="room-description"
+                  value={form.description}
+                  onChange={(event) => updateForm("description", event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  placeholder="Room highlights and guest-facing details"
+                />
+                {fieldErrors.description ? (
+                  <p className="text-xs text-destructive">{fieldErrors.description}</p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="room-capacity">Capacity</Label>
+                  <Input
+                    id="room-capacity"
+                    type="number"
+                    min="1"
+                    max="20"
+                    inputMode="numeric"
+                    value={form.maxGuests}
+                    onChange={(event) => updateForm("maxGuests", event.target.value)}
+                    aria-invalid={Boolean(fieldErrors.maxGuests)}
+                  />
+                  {fieldErrors.maxGuests ? (
+                    <p className="text-xs text-destructive">{fieldErrors.maxGuests}</p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="room-price">Nightly Price</Label>
+                  <Input
+                    id="room-price"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={form.nightlyPrice}
+                    onChange={(event) => updateForm("nightlyPrice", event.target.value)}
+                    aria-invalid={Boolean(fieldErrors.nightlyPrice)}
+                    placeholder="199.00"
+                  />
+                  {fieldErrors.nightlyPrice ? (
+                    <p className="text-xs text-destructive">{fieldErrors.nightlyPrice}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Amenities</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {form.amenityIds.length} selected
+                  </span>
+                </div>
+                {amenities.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {amenities.map((amenity) => {
+                      const checked = form.amenityIds.includes(amenity.id);
+
+                      return (
+                        <label
+                          key={amenity.id}
+                          className="flex min-h-8 items-center gap-2 rounded-lg border border-border/70 px-2.5 py-1.5 text-sm"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(value) => toggleAmenity(amenity.id, value === true)}
+                          />
+                          <span className="truncate">{amenity.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Seed amenities before assigning them to rooms.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Photos</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addPhoto}>
+                    <Plus data-icon="inline-start" />
+                    Add Photo
+                  </Button>
+                </div>
+
+                {form.photos.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">
+                    Add at least one URL to show this room visually in staff tools and guest search.
+                  </p>
+                ) : null}
+
+                {form.photos.map((photo, index) => (
+                  <div key={index} className="flex flex-col gap-2 rounded-lg border border-border/70 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={photo.isPrimary}
+                          onCheckedChange={() => setPrimaryPhoto(index)}
+                        />
+                        Primary
+                      </label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removePhoto(index)}
+                        aria-label="Remove photo"
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                    <Input
+                      value={photo.url}
+                      onChange={(event) => updatePhoto(index, { url: event.target.value })}
+                      placeholder="https://example.com/room.jpg"
+                      aria-invalid={Boolean(fieldErrors.photos)}
+                    />
+                    <Input
+                      value={photo.altText}
+                      onChange={(event) => updatePhoto(index, { altText: event.target.value })}
+                      placeholder="Alt text"
+                    />
+                  </div>
+                ))}
+
+                {fieldErrors.photos ? (
+                  <p className="text-xs text-destructive">{fieldErrors.photos}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="submit" disabled={isSaving}>
+                  <Save data-icon="inline-start" />
+                  {isSaving ? "Saving..." : editingRoom ? "Save Room" : "Create Room"}
+                </Button>
+                {editingRoom ? (
+                  <Button type="button" variant="outline" onClick={startCreate} disabled={isSaving}>
+                    <X data-icon="inline-start" />
+                    Cancel Edit
+                  </Button>
+                ) : null}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <section className="flex flex-col gap-4" aria-live="polite">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-4 w-full" />
+                  </CardContent>
+                </Card>
+              ))
+            : null}
+
+          {!isLoading && rooms.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-border/60 bg-muted/30 p-10 text-center">
+              <BedDouble aria-hidden="true" className="size-10 text-muted-foreground" />
+              <div className="flex flex-col gap-1.5">
+                <h2 className="font-heading text-lg text-foreground">No Rooms Yet</h2>
+                <p className="text-sm text-muted-foreground">
+                  Use the staff form to add the first room.
+                </p>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!isLoading
-          ? rooms.map((room) => (
-              <Card key={room.id}>
-                <CardHeader>
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="flex min-w-0 flex-col gap-1.5">
-                      <CardTitle>{room.name}</CardTitle>
-                      <CardDescription className="capitalize">
-                        {room.type} · up to {room.maxGuests} guests
-                      </CardDescription>
+          {!isLoading
+            ? rooms.map((room) => (
+                <Card key={room.id}>
+                  <CardHeader>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="flex min-w-0 flex-col gap-1.5">
+                        <CardTitle>{room.name}</CardTitle>
+                        <CardDescription className="capitalize">
+                          {room.type} · up to {room.maxGuests} guests ·{" "}
+                          {moneyFormatter.format(Number(room.nightlyPrice))} / night
+                        </CardDescription>
+                      </div>
+                      <div className="flex w-fit items-center gap-1.5 rounded-lg border border-border/70 px-2.5 py-1 text-sm">
+                        {room.active ? (
+                          <Check aria-hidden="true" className="text-primary" />
+                        ) : (
+                          <CircleOff aria-hidden="true" className="text-muted-foreground" />
+                        )}
+                        <span className="font-medium">{room.active ? "Active" : "Inactive"}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 rounded-md border border-border/70 px-3 py-1.5 text-sm">
-                      <BadgeCheck
-                        aria-hidden="true"
-                        className={room.active ? "size-4 text-emerald-600" : "size-4 text-muted-foreground"}
-                      />
-                      <span className="font-medium">{room.active ? "Active" : "Inactive"}</span>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4 text-sm">
+                    <p className="line-clamp-2 text-muted-foreground">{room.description}</p>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <p className="mb-1 text-xs text-muted-foreground">Photos</p>
+                        <p className="font-medium tabular-nums">{room.photos.length}</p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-muted-foreground">Amenities</p>
+                        <p className="font-medium tabular-nums">{room.amenities.length}</p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-muted-foreground">Primary Image</p>
+                        <p className="truncate font-medium">
+                          {room.primaryPhotoUrl ? "Configured" : "Missing"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid gap-4 text-sm md:grid-cols-[1fr_auto] md:items-end">
-                  <p className="text-muted-foreground">{room.description}</p>
-                  <div className="font-medium tabular-nums md:text-right">
-                    {moneyFormatter.format(Number(room.nightlyPrice))} / night
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          : null}
+
+                    {room.amenities.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {room.amenities.slice(0, 8).map((amenity) => (
+                          <span
+                            key={amenity.id}
+                            className="rounded-lg bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+                          >
+                            {amenity.name}
+                          </span>
+                        ))}
+                        {room.amenities.length > 8 ? (
+                          <span className="rounded-lg bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                            +{room.amenities.length - 8}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="outline" onClick={() => startEdit(room)}>
+                      <Pencil data-icon="inline-start" />
+                      Edit
+                    </Button>
+                    {room.active ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => setRoomActive(room, false)}
+                        disabled={actionRoomId === room.id}
+                      >
+                        <Trash2 data-icon="inline-start" />
+                        {actionRoomId === room.id ? "Working..." : "Deactivate"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setRoomActive(room, true)}
+                        disabled={actionRoomId === room.id}
+                      >
+                        <RotateCcw data-icon="inline-start" />
+                        {actionRoomId === room.id ? "Working..." : "Reactivate"}
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))
+            : null}
+        </section>
       </section>
     </main>
   );

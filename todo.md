@@ -121,16 +121,16 @@ Verification snapshot:
 ### Staff Room Inventory Management
 
 - [x] Staff API: list all rooms, including inactive rooms.
-- [ ] Staff API: create rooms with type, description, capacity, price, amenities, and photos.
-- [ ] Staff API: validate required room fields and numeric ranges.
-- [ ] Staff API: edit room details, capacity, price, amenities, and photos.
-- [ ] Staff API: deactivate rooms without deleting history.
-- [ ] Staff API: restore/reactivate rooms if staff tools should support auditing and recovery.
-- [ ] Staff UI: room inventory table/list.
-- [ ] Staff UI: add room form.
-- [ ] Staff UI: edit room form.
-- [ ] Staff UI: deactivate/reactivate controls.
-- [ ] Staff UI: loading, empty, error, validation, and success states for inventory workflows.
+- [x] Staff API: create rooms with type, description, capacity, price, amenities, and photos.
+- [x] Staff API: validate required room fields and numeric ranges.
+- [x] Staff API: edit room details, capacity, price, amenities, and photos.
+- [x] Staff API: deactivate rooms without deleting history.
+- [x] Staff API: restore/reactivate rooms if staff tools should support auditing and recovery.
+- [x] Staff UI: room inventory table/list.
+- [x] Staff UI: add room form.
+- [x] Staff UI: edit room form.
+- [x] Staff UI: deactivate/reactivate controls.
+- [x] Staff UI: loading, empty, error, validation, and success states for inventory workflows.
 
 ### Staff Reservation Management
 
