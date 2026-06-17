@@ -56,8 +56,11 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
+    <div className="mx-auto w-full mt-12 max-w-md px-6">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-heading text-foreground">Create Account</h1>
+        <p className="text-sm text-muted-foreground mt-2">Start booking your next stay</p>
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -71,7 +74,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           <form.Field name="name">
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Name</Label>
+                <Label htmlFor={field.name} className="text-muted-foreground">Name</Label>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -80,7 +83,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -93,7 +96,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           <form.Field name="email">
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
+                <Label htmlFor={field.name} className="text-muted-foreground">Email</Label>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -103,7 +106,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -116,7 +119,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           <form.Field name="password">
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
+                <Label htmlFor={field.name} className="text-muted-foreground">Password</Label>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -126,7 +129,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-destructive">
                     {error?.message}
                   </p>
                 ))}
@@ -139,18 +142,18 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
         >
           {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Sign Up"}
+            <Button type="submit" className="w-full mt-2" disabled={!canSubmit || isSubmitting}>
+              {isSubmitting ? "Creating account..." : "Sign Up"}
             </Button>
           )}
         </form.Subscribe>
       </form>
 
-      <div className="mt-4 text-center">
+      <div className="mt-6 text-center">
         <Button
           variant="link"
           onClick={onSwitchToSignIn}
-          className="text-indigo-600 hover:text-indigo-800"
+          className="text-primary hover:text-primary/80"
         >
           Already have an account? Sign In
         </Button>

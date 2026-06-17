@@ -95,15 +95,14 @@ function RouteComponent() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
       <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance">
-            Welcome {session.data?.user.name}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-heading text-foreground tracking-tight text-balance">
+            Welcome, {session.data?.user.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            View and cancel reservations created with the booking API.
+            View and manage your reservations.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={loadReservations} disabled={isLoading}>
@@ -113,12 +112,12 @@ function RouteComponent() {
       </section>
 
       {errorMessage ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {errorMessage}
         </div>
       ) : null}
 
-      <section className="flex flex-col gap-3" aria-live="polite">
+      <section className="flex flex-col gap-4" aria-live="polite">
         {isLoading
           ? Array.from({ length: 3 }).map((_, index) => (
               <Card key={index}>
@@ -134,12 +133,12 @@ function RouteComponent() {
           : null}
 
         {!isLoading && reservations.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg border bg-card p-8 text-center">
-            <CalendarX aria-hidden="true" className="text-muted-foreground" />
-            <div className="flex flex-col gap-1">
-              <h2 className="font-medium">No Reservations Yet</h2>
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-10 text-center">
+            <CalendarX aria-hidden="true" className="text-muted-foreground size-10" />
+            <div className="flex flex-col gap-1.5">
+              <h2 className="font-heading text-lg text-foreground">No Reservations Yet</h2>
               <p className="text-sm text-muted-foreground">
-                Book a room from the home page and it will show up here.
+                Book a room from the home page and it will appear here.
               </p>
             </div>
           </div>
@@ -155,19 +154,19 @@ function RouteComponent() {
                     {formatDate(reservation.checkOutDate)}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-3 text-sm md:grid-cols-3">
+                <CardContent className="grid gap-4 text-sm md:grid-cols-3">
                   <div>
-                    <p className="text-muted-foreground">Status</p>
+                    <p className="text-muted-foreground mb-1">Status</p>
                     <p className="font-medium capitalize">{reservation.status}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Total</p>
+                    <p className="text-muted-foreground mb-1">Total</p>
                     <p className="font-medium tabular-nums">
                       {moneyFormatter.format(Number(reservation.totalPrice))}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Reserved</p>
+                    <p className="text-muted-foreground mb-1">Reserved</p>
                     <p className="font-medium">
                       {dateFormatter.format(new Date(reservation.createdAt))}
                     </p>

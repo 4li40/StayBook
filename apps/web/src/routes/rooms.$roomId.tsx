@@ -98,28 +98,28 @@ function RoomDetailComponent() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6">
-      <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground w-fit">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
+      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
         <ArrowLeft className="h-4 w-4" />
         Back to rooms
       </Link>
 
       {isLoading ? (
         <div className="flex flex-col gap-4">
-          <Skeleton className="aspect-[16/9] w-full rounded-lg" />
+          <Skeleton className="aspect-[16/9] w-full rounded-xl" />
           <Skeleton className="h-8 w-1/2" />
           <Skeleton className="h-5 w-1/3" />
           <Skeleton className="h-20 w-full" />
         </div>
       ) : errorMessage ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {errorMessage}
         </div>
       ) : room ? (
         <div className="flex flex-col gap-6">
           {room.photos.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-muted">
+            <div className="flex flex-col gap-3">
+              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-muted">
                 <img
                   src={room.photos[activePhotoIndex].url}
                   alt={room.photos[activePhotoIndex].altText ?? room.name}
@@ -133,9 +133,9 @@ function RoomDetailComponent() {
                       key={photo.id}
                       type="button"
                       onClick={() => setActivePhotoIndex(index)}
-                      className={`relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
+                      className={`relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                         index === activePhotoIndex
-                          ? "border-foreground"
+                          ? "border-primary ring-2 ring-primary/20"
                           : "border-transparent opacity-60 hover:opacity-100"
                       }`}
                     >
@@ -150,16 +150,16 @@ function RoomDetailComponent() {
               ) : null}
             </div>
           ) : (
-            <div className="flex aspect-[16/9] items-center justify-center rounded-lg bg-muted">
+            <div className="flex aspect-[16/9] items-center justify-center rounded-xl bg-muted/50">
               <BedDouble aria-hidden="true" className="text-muted-foreground" />
             </div>
           )}
 
-          <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-            <div className="flex flex-col gap-4">
+          <div className="grid gap-6 md:grid-cols-[1fr_340px]">
+            <div className="flex flex-col gap-5">
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight">{room.name}</h1>
-                <p className="capitalize text-muted-foreground">
+                <h1 className="text-3xl font-heading text-foreground tracking-tight">{room.name}</h1>
+                <p className="capitalize text-muted-foreground mt-1">
                   {room.type} · up to {room.maxGuests} guests
                 </p>
               </div>
@@ -167,15 +167,15 @@ function RoomDetailComponent() {
               <p className="text-sm leading-relaxed text-muted-foreground">{room.description}</p>
 
               {room.amenities.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <h2 className="text-sm font-medium">Amenities</h2>
+                <div className="flex flex-col gap-2.5">
+                  <h2 className="text-sm font-medium text-foreground">Amenities</h2>
                   <div className="flex flex-wrap gap-2">
                     {room.amenities.map((amenity) => (
                       <span
                         key={amenity.id}
-                        className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-accent/50 px-3 py-1.5 text-xs text-accent-foreground"
                       >
-                        <Check className="h-3 w-3" />
+                        <Check className="h-3 w-3 text-primary" />
                         {amenity.name}
                       </span>
                     ))}
@@ -184,9 +184,9 @@ function RoomDetailComponent() {
               ) : null}
             </div>
 
-            <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
-              <p className="text-lg font-medium tabular-nums">
-                {moneyFormatter.format(Number(room.nightlyPrice))} / night
+            <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 shadow-sm">
+              <p className="text-xl font-heading text-foreground tabular-nums">
+                {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-base text-muted-foreground font-sans font-normal">/ night</span>
               </p>
 
               <form
@@ -197,7 +197,7 @@ function RoomDetailComponent() {
                 }}
               >
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="check-in-date">
+                  <Label htmlFor="check-in-date" className="text-muted-foreground">
                     <CalendarDays aria-hidden="true" />
                     Check In
                   </Label>
@@ -209,7 +209,7 @@ function RoomDetailComponent() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="check-out-date">
+                  <Label htmlFor="check-out-date" className="text-muted-foreground">
                     <CalendarDays aria-hidden="true" />
                     Check Out
                   </Label>
@@ -221,7 +221,7 @@ function RoomDetailComponent() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="guest-count">
+                  <Label htmlFor="guest-count" className="text-muted-foreground">
                     <Users aria-hidden="true" />
                     Guests
                   </Label>
@@ -244,7 +244,7 @@ function RoomDetailComponent() {
                   <p className="text-sm text-muted-foreground">Pick valid dates</p>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isBooking || nights === 0}>
+                <Button type="submit" className="w-full mt-1" disabled={isBooking || nights === 0}>
                   {isBooking ? "Booking…" : "Book Now"}
                 </Button>
               </form>

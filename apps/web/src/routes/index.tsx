@@ -81,28 +81,26 @@ function HomeComponent() {
   const nights = getNightCount(checkInDate, checkOutDate);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6">
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-muted-foreground">StayBook</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance">
-            Find and Book an Available Room
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-heading text-foreground tracking-tight text-balance">
+            Find Your Perfect Stay
           </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Search the seeded room inventory, check availability, and create a reservation against
-            the Express API.
+          <p className="max-w-xl text-muted-foreground leading-relaxed">
+            Browse available rooms, check dates, and book your reservation in moments.
           </p>
         </div>
 
         <form
-          className="grid gap-3 rounded-lg border bg-card p-3 md:grid-cols-[1fr_1fr_120px_auto]"
+          className="grid gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm md:grid-cols-[1fr_1fr_140px_auto]"
           onSubmit={(event) => {
             event.preventDefault();
             loadRooms();
           }}
         >
           <div className="flex flex-col gap-2">
-            <Label htmlFor="check-in-date">
+            <Label htmlFor="check-in-date" className="text-muted-foreground">
               <CalendarDays aria-hidden="true" />
               Check In
             </Label>
@@ -116,7 +114,7 @@ function HomeComponent() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="check-out-date">
+            <Label htmlFor="check-out-date" className="text-muted-foreground">
               <CalendarDays aria-hidden="true" />
               Check Out
             </Label>
@@ -130,7 +128,7 @@ function HomeComponent() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="guest-count">
+            <Label htmlFor="guest-count" className="text-muted-foreground">
               <Users aria-hidden="true" />
               Guests
             </Label>
@@ -156,12 +154,12 @@ function HomeComponent() {
       </section>
 
       {errorMessage ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {errorMessage}
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-live="polite">
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3" style={{ gridAutoRows: '1fr' }} aria-live="polite">
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
               <Card key={index}>
@@ -179,7 +177,7 @@ function HomeComponent() {
           : null}
 
         {!isLoading && rooms.length === 0 ? (
-          <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+          <div className="rounded-xl border border-border/60 bg-muted/40 p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
             No rooms match this search. Try fewer guests or a different date range.
           </div>
         ) : null}
@@ -193,9 +191,9 @@ function HomeComponent() {
                   key={room.id}
                   to="/rooms/$roomId"
                   params={{ roomId: room.id }}
-                  className="group block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+                  className="group flex h-full flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
                 >
-                  <Card className="transition-shadow group-hover:shadow-md">
+                  <Card className="flex h-full flex-col transition-all duration-200 group-hover:shadow-md group-hover:shadow-primary/5 group-hover:-translate-y-0.5">
                     {room.primaryPhotoUrl ? (
                       <img
                         src={room.primaryPhotoUrl}
@@ -206,7 +204,7 @@ function HomeComponent() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="flex aspect-[4/3] items-center justify-center bg-muted">
+                      <div className="flex aspect-[4/3] items-center justify-center bg-muted/50">
                         <BedDouble aria-hidden="true" className="text-muted-foreground" />
                       </div>
                     )}
@@ -217,24 +215,24 @@ function HomeComponent() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3">
-                      <p className="line-clamp-2 text-sm text-muted-foreground">
+                      <p className="line-clamp-2 text-sm text-muted-foreground leading-relaxed">
                         {room.description}
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {room.amenities.slice(0, 4).map((amenity) => (
                           <span
                             key={amenity.id}
-                            className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground"
+                            className="rounded-full bg-accent/50 px-2.5 py-1 text-xs text-accent-foreground"
                           >
                             {amenity.name}
                           </span>
                         ))}
                       </div>
                     </CardContent>
-                    <CardFooter className="justify-between gap-3">
+                    <CardFooter className="mt-auto justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium tabular-nums">
-                          {moneyFormatter.format(Number(room.nightlyPrice))} / night
+                          {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-muted-foreground font-normal">/ night</span>
                         </p>
                         <p className="text-xs text-muted-foreground tabular-nums">
                           {nights > 0 ? `${moneyFormatter.format(total)} total` : "Pick valid dates"}
