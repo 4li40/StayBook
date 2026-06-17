@@ -15,7 +15,9 @@
     "db:push": "turbo -F @StayBook/db db:push",
     "db:studio": "turbo -F @StayBook/db db:studio",
     "db:generate": "turbo -F @StayBook/db db:generate",
-    "db:migrate": "turbo -F @StayBook/db db:migrate"
+    "db:migrate": "turbo -F @StayBook/db db:migrate",
+    "db:seed": "turbo -F server seed",
+    "test": "turbo test"
   },
   "dependencies": {
     "@StayBook/env": "*",
