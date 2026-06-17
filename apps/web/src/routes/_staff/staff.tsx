@@ -135,6 +135,7 @@ function RouteComponent() {
   const [isSaving, setIsSaving] = useState(false);
   const [actionRoomId, setActionRoomId] = useState<string | null>(null);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<RoomFormState>(emptyRoomForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -187,12 +188,25 @@ function RouteComponent() {
     setEditingRoomId(null);
     setForm(emptyRoomForm);
     setFieldErrors({});
+    setIsFormOpen(true);
+  }
+
+  function closeForm() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsFormOpen(false);
+    setEditingRoomId(null);
+    setForm(emptyRoomForm);
+    setFieldErrors({});
   }
 
   function startEdit(room: StaffRoom) {
     setEditingRoomId(room.id);
     setForm(roomToForm(room));
     setFieldErrors({});
+    setIsFormOpen(true);
   }
 
   function toggleAmenity(amenityId: string, checked: boolean) {
@@ -260,7 +274,9 @@ function RouteComponent() {
 
       toast.success(editingRoomId ? "Room updated." : "Room created.");
       await loadInventory();
-      startCreate();
+      setIsFormOpen(false);
+      setEditingRoomId(null);
+      setForm(emptyRoomForm);
     } catch (error) {
       setFieldErrors({
         ...collectFieldErrors(error),
@@ -347,17 +363,44 @@ function RouteComponent() {
         </Card>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start">
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingRoom ? "Edit Room" : "Add Room"}</CardTitle>
-            <CardDescription>
-              {editingRoom
-                ? `Editing ${editingRoom.name}`
-                : "Create a staff-managed room record."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      {isFormOpen ? (
+        <div
+          className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="room-form-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeForm();
+            }
+          }}
+        >
+          <Card className="max-h-[calc(100vh-4rem)] w-full max-w-2xl overflow-hidden shadow-lg">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <CardTitle id="room-form-title">
+                    {editingRoom ? "Edit Room" : "Add Room"}
+                  </CardTitle>
+                  <CardDescription>
+                    {editingRoom
+                      ? `Editing ${editingRoom.name}`
+                      : "Create a staff-managed room record."}
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={closeForm}
+                  disabled={isSaving}
+                  aria-label="Close room form"
+                >
+                  <X />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="max-h-[calc(100vh-11rem)] overflow-y-auto">
             <form
               className="flex flex-col gap-5"
               onSubmit={(event) => {
@@ -544,31 +587,31 @@ function RouteComponent() {
                   <Save data-icon="inline-start" />
                   {isSaving ? "Saving..." : editingRoom ? "Save Room" : "Create Room"}
                 </Button>
-                {editingRoom ? (
-                  <Button type="button" variant="outline" onClick={startCreate} disabled={isSaving}>
-                    <X data-icon="inline-start" />
-                    Cancel Edit
-                  </Button>
-                ) : null}
+                <Button type="button" variant="outline" onClick={closeForm} disabled={isSaving}>
+                  <X data-icon="inline-start" />
+                  {editingRoom ? "Cancel Edit" : "Cancel"}
+                </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
-        <section className="flex flex-col gap-4" aria-live="polite">
-          {isLoading
-            ? Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
-                  <CardHeader>
-                    <Skeleton className="h-5 w-1/3" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-4 w-full" />
-                  </CardContent>
-                </Card>
-              ))
-            : null}
+      <section className="flex flex-col gap-4" aria-live="polite">
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          : null}
 
           {!isLoading && rooms.length === 0 ? (
             <div className="flex flex-col items-center gap-4 rounded-lg border border-border/60 bg-muted/30 p-10 text-center">
@@ -576,7 +619,7 @@ function RouteComponent() {
               <div className="flex flex-col gap-1.5">
                 <h2 className="font-heading text-lg text-foreground">No Rooms Yet</h2>
                 <p className="text-sm text-muted-foreground">
-                  Use the staff form to add the first room.
+                  Use Add Room to create the first room.
                 </p>
               </div>
             </div>
@@ -672,7 +715,6 @@ function RouteComponent() {
                 </Card>
               ))
             : null}
-        </section>
       </section>
     </main>
   );
