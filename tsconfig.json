@@ -1,0 +1,3 @@
+{
+  "extends": "@StayBook/config/tsconfig.base.json"
+}
