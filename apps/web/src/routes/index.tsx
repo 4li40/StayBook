@@ -138,7 +138,7 @@ function HomeComponent() {
         </div>
 
         <form
-          className="w-full max-w-4xl flex flex-col md:flex-row items-stretch gap-2 md:gap-0 rounded-2xl md:rounded-full border border-border/80 bg-card p-2 md:pl-6 md:pr-2 shadow-xs transition-all hover:shadow-sm focus-within:ring-1 focus-within:ring-primary/20"
+          className="w-full max-w-4xl flex flex-col md:flex-row items-stretch gap-2 md:gap-0 rounded-2xl md:rounded-full border border-ghost-border bg-card p-2 md:pl-6 md:pr-2 shadow-xs transition-all hover:shadow-[0_8px_30px_rgba(26,43,60,0.04)] focus-within:border-gold focus-within:ring-1 focus-within:ring-gold/30"
           onSubmit={(e) => {
             e.preventDefault();
             form.handleSubmit();
@@ -230,7 +230,7 @@ function HomeComponent() {
           </form.Field>
 
           <div className="flex items-center justify-center p-1">
-            <Button type="submit" className="h-12 w-full md:w-12 md:rounded-full bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 md:p-0 transition-transform active:scale-95 cursor-pointer" disabled={isLoading}>
+            <Button type="submit" className="h-12 w-full md:w-12 md:rounded-full bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 md:p-0 transition-transform active:scale-95 cursor-pointer font-sans" disabled={isLoading}>
               <Search className="h-4 w-4" />
               <span className="md:hidden font-medium text-sm">Search Rooms</span>
             </Button>
@@ -244,10 +244,10 @@ function HomeComponent() {
         </div>
       ) : null}
 
-      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" style={{ gridAutoRows: '1fr' }} aria-live="polite">
+      <section className="grid gap-8 md:grid-cols-2 lg:grid-cols-3" style={{ gridAutoRows: '1fr' }} aria-live="polite">
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden border border-border/40">
+              <Card key={index} className="overflow-hidden border border-ghost-border rounded-lg">
                 <Skeleton className="aspect-[4/3] w-full" />
                 <CardHeader className="p-5 pb-2">
                   <Skeleton className="h-6 w-2/3" />
@@ -262,7 +262,7 @@ function HomeComponent() {
           : null}
 
         {!isLoading && rooms.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
+          <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
             No rooms match this search. Try fewer guests or a different date range.
           </div>
         ) : null}
@@ -277,11 +277,11 @@ function HomeComponent() {
                   to="/rooms/$roomId"
                   params={{ roomId: room.id }}
                   search={{ checkInDate, checkOutDate, guests }}
-                  className="group flex h-full flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                  className="group flex h-full flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
                   data-booked={room.booked || undefined}
                 >
                   <Card
-                    className={`flex h-full flex-col overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:border-border group-hover:shadow-xs group-hover:-translate-y-0.5 ${
+                    className={`flex h-full flex-col overflow-hidden border border-ghost-border bg-card rounded-lg shadow-none transition-all duration-300 group-hover:border-border/60 group-hover:shadow-[0_8px_30px_rgba(26,43,60,0.04)] group-hover:-translate-y-1 ${
                       room.booked ? "opacity-60" : ""
                     }`}
                   >
@@ -301,30 +301,30 @@ function HomeComponent() {
                         </div>
                       )}
                       {room.booked ? (
-                        <span aria-label="Booked" className="absolute top-3 right-3 rounded bg-destructive px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-destructive-foreground shadow-xs">
+                        <span aria-label="Booked" className="absolute top-3 right-3 rounded-full bg-destructive/10 text-destructive border border-destructive/25 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider">
                           Booked
                         </span>
                       ) : null}
                     </div>
 
                     <CardHeader className="p-5 pb-2">
-                      <CardTitle className="font-heading text-xl text-foreground tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
+                      <CardTitle className="font-heading text-2xl text-foreground tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
                         {room.name}
                       </CardTitle>
-                      <CardDescription className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/85 mt-1">
+                      <CardDescription className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/80 mt-1">
                         {room.type} · up to {room.maxGuests} guests
                       </CardDescription>
                     </CardHeader>
 
-                    <CardContent className="px-5 py-2 flex flex-col gap-3">
-                      <p className="line-clamp-2 text-xs text-muted-foreground/90 leading-relaxed">
+                    <CardContent className="px-5 py-2 flex flex-col gap-4">
+                      <p className="line-clamp-2 text-xs text-muted-foreground/90 leading-relaxed font-sans">
                         {room.description}
                       </p>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {room.amenities.slice(0, 3).map((amenity) => (
                           <span
                             key={amenity.id}
-                            className="rounded bg-secondary/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border/10"
+                            className="rounded-full bg-secondary text-muted-foreground/90 border border-border/20 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide"
                           >
                             {amenity.name}
                           </span>
@@ -340,13 +340,13 @@ function HomeComponent() {
                       ) : (
                         <div className="flex items-baseline gap-1.5 w-full justify-between">
                           <div>
-                            <span className="text-base font-bold text-foreground tabular-nums">
+                            <span className="text-lg font-bold text-foreground tabular-nums">
                               {formatCents(room.nightlyPrice)}
                             </span>
-                            <span className="text-xs text-muted-foreground/80 font-medium"> / night</span>
+                            <span className="text-xs text-muted-foreground/80 font-medium font-sans"> / night</span>
                           </div>
                           {nights > 0 ? (
-                            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                            <span className="text-xs font-semibold text-muted-foreground/85 tabular-nums">
                               {formatCents(total)} total
                             </span>
                           ) : null}
