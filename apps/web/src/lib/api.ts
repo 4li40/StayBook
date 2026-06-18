@@ -90,6 +90,12 @@ export type StaffRoomResponse = {
 
 export type ReservationStatus = "confirmed" | "cancelled";
 
+export type ReservationDerivedState =
+  | "upcoming"
+  | "active"
+  | "past"
+  | "cancelled";
+
 export type Reservation = {
   id: string;
   roomId: string;
@@ -122,6 +128,66 @@ export type ReservationsResponse = {
     pageCount: number;
   };
 };
+
+export type StaffReservation = Reservation & {
+  state: ReservationDerivedState;
+  guest: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
+};
+
+export type StaffReservationsResponse = {
+  reservations: StaffReservation[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    pageCount: number;
+  };
+};
+
+export type StaffReservationResponse = {
+  reservation: StaffReservation;
+};
+
+export type StaffReservationFilters = {
+  page?: number;
+  pageSize?: number;
+  roomId?: string;
+  status?: ReservationStatus;
+  state?: ReservationDerivedState;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export function buildStaffReservationsQuery(
+  filters: StaffReservationFilters,
+): string {
+  const params = new URLSearchParams();
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+
+  if (filters.roomId) {
+    params.set("roomId", filters.roomId);
+  }
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+  if (filters.state) {
+    params.set("state", filters.state);
+  }
+  if (filters.dateFrom) {
+    params.set("dateFrom", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.set("dateTo", filters.dateTo);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
 
 export class ApiClientError extends Error {
   constructor(

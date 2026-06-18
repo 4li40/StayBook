@@ -11,7 +11,10 @@ export default function Header() {
   const links = [
     { to: "/", label: "Find a room" },
     ...(role === "staff"
-      ? [{ to: "/staff", label: "Inventory" }]
+      ? [
+          { to: "/staff", label: "Inventory" },
+          { to: "/reservations", label: "Reservations" },
+        ]
       : [{ to: "/dashboard", label: "My stays" }]),
   ];
 

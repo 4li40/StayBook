@@ -141,11 +141,11 @@ Verification snapshot:
 - [x] Staff API: paginate reservation lists with metadata.
 - [x] Staff API: manually cancel any reservation.
 - [x] Staff API: preserve reservation records and cancellation metadata for manual cancellations.
-- [ ] Staff UI: reservation management page.
-- [ ] Staff UI: date range, room, and status filters.
-- [ ] Staff UI: pagination controls.
-- [ ] Staff UI: manual cancellation flow.
-- [ ] Staff UI: loading, empty, error, validation, and success states for reservation workflows.
+- [x] Staff UI: reservation management page.
+- [x] Staff UI: date range, room, and status filters.
+- [x] Staff UI: pagination controls.
+- [x] Staff UI: manual cancellation flow.
+- [x] Staff UI: loading, empty, error, validation, and success states for reservation workflows.
 
 ### Seeder
 
