@@ -28,6 +28,7 @@ type RoomListRow = {
   nightlyPrice: string;
   primaryPhotoUrl: string | null;
   amenities: AmenitySummary[];
+  booked: boolean;
 };
 
 type RoomDetailRow = {
@@ -109,18 +110,16 @@ roomsRouter.get(
   asyncHandler(async (req, res) => {
     const query = roomsQuerySchema.parse(req.query);
     const hasDates = Boolean(query.checkInDate && query.checkOutDate);
-    const availabilityFilter = hasDates
-      ? sql`
-          and not exists (
-            select 1
-            from reservations reservation
-            where reservation.room_id = room.id
-              and reservation.status = 'confirmed'
-              and daterange(reservation.check_in_date, reservation.check_out_date, '[)')
-                && daterange(${query.checkInDate}::date, ${query.checkOutDate}::date, '[)')
-          )
-        `
-      : sql``;
+    const bookedColumn = hasDates
+      ? sql`exists (
+          select 1
+          from reservations reservation
+          where reservation.room_id = room.id
+            and reservation.status = 'confirmed'
+            and daterange(reservation.check_in_date, reservation.check_out_date, '[)')
+              && daterange(${query.checkInDate}::date, ${query.checkOutDate}::date, '[)')
+        )`
+      : sql`false`;
 
     const result = await db.execute<RoomListRow>(sql`
       select
@@ -136,7 +135,8 @@ roomsRouter.get(
             distinct jsonb_build_object('id', amenity.id, 'name', amenity.name)
           ) filter (where amenity.id is not null),
           '[]'::json
-        ) as amenities
+        ) as amenities,
+        ${bookedColumn} as booked
       from rooms room
       left join room_photos primary_photo
         on primary_photo.room_id = room.id
@@ -147,7 +147,6 @@ roomsRouter.get(
         on amenity.id = room_amenity.amenity_id
       where room.active = true
         and room.max_guests >= ${query.guests}
-        ${availabilityFilter}
       group by room.id, primary_photo.url
       order by room.nightly_price asc, room.name asc
     `);
@@ -155,6 +154,7 @@ roomsRouter.get(
     sendData(res, {
       rooms: result.rows.map((room) => ({
         ...room,
+        booked: Boolean(room.booked),
         amenities: Array.isArray(room.amenities) ? room.amenities : [],
       })),
     });

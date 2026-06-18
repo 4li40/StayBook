@@ -33,6 +33,7 @@ export type Room = {
   nightlyPrice: string;
   primaryPhotoUrl: string | null;
   amenities: Amenity[];
+  booked: boolean;
 };
 
 export type StaffRoom = Room & {

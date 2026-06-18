@@ -192,22 +192,34 @@ function HomeComponent() {
                   to="/rooms/$roomId"
                   params={{ roomId: room.id }}
                   className="group flex h-full flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                  data-booked={room.booked || undefined}
                 >
-                  <Card className="flex h-full flex-col transition-all duration-200 group-hover:shadow-md group-hover:shadow-primary/5 group-hover:-translate-y-0.5">
-                    {room.primaryPhotoUrl ? (
-                      <img
-                        src={room.primaryPhotoUrl}
-                        alt={room.name}
-                        width={800}
-                        height={600}
-                        className="aspect-[4/3] w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex aspect-[4/3] items-center justify-center bg-muted/50">
-                        <BedDouble aria-hidden="true" className="text-muted-foreground" />
-                      </div>
-                    )}
+                  <Card
+                    className={`flex h-full flex-col transition-all duration-200 group-hover:shadow-md group-hover:shadow-primary/5 group-hover:-translate-y-0.5 ${
+                      room.booked ? "opacity-60" : ""
+                    }`}
+                  >
+                    <div className="relative">
+                      {room.primaryPhotoUrl ? (
+                        <img
+                          src={room.primaryPhotoUrl}
+                          alt={room.name}
+                          width={800}
+                          height={600}
+                          className="aspect-[4/3] w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex aspect-[4/3] items-center justify-center bg-muted/50">
+                          <BedDouble aria-hidden="true" className="text-muted-foreground" />
+                        </div>
+                      )}
+                      {room.booked ? (
+                        <span aria-label="Booked" className="absolute top-2 right-2 rounded-md bg-destructive px-2.5 py-1 text-xs font-semibold text-destructive-foreground shadow-xs">
+                          Booked
+                        </span>
+                      ) : null}
+                    </div>
                     <CardHeader>
                       <CardTitle>{room.name}</CardTitle>
                       <CardDescription className="capitalize">
@@ -230,14 +242,20 @@ function HomeComponent() {
                       </div>
                     </CardContent>
                     <CardFooter className="mt-auto justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium tabular-nums">
-                          {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-muted-foreground font-normal">/ night</span>
+                      {room.booked ? (
+                        <p className="text-sm text-muted-foreground">
+                          Booked for these dates
                         </p>
-                        <p className="text-xs text-muted-foreground tabular-nums">
-                          {nights > 0 ? `${moneyFormatter.format(total)} total` : "Pick valid dates"}
-                        </p>
-                      </div>
+                      ) : (
+                        <div className="min-w-0">
+                          <p className="font-medium tabular-nums">
+                            {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-muted-foreground font-normal">/ night</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {nights > 0 ? `${moneyFormatter.format(total)} total` : "Pick valid dates"}
+                          </p>
+                        </div>
+                      )}
                     </CardFooter>
                   </Card>
                 </Link>
