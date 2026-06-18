@@ -77,6 +77,9 @@ Sample files are provided at `apps/server/.env.example` and `apps/web/.env.examp
 | `BETTER_AUTH_SECRET` | Yes | Random secret, 32+ characters. Generate with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | Yes | Public URL where the API server is reachable. Defaults to `http://localhost:3000` in dev. |
 | `CORS_ORIGIN` | Yes | Public URL where the web app is reachable (CORS allow-list origin). |
+| `AUTH_COOKIE_SAME_SITE` | No | Cookie SameSite policy: `lax`, `strict`, or `none`. Defaults to `lax` in development and `none` in production. |
+| `AUTH_COOKIE_SECURE` | No | Cookie Secure flag override: `true` or `false`. Defaults to `true` for HTTPS or `SameSite=none`; otherwise `false`. |
+| `TRUST_PROXY` | No | Set to `true` only when the API is behind one trusted reverse proxy so rate limits use the client IP. Defaults to `false`. |
 | `NODE_ENV` | No | `development`, `production`, or `test`. Defaults to `development`. |
 
 ### Web (`apps/web/.env`)

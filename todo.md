@@ -1,12 +1,12 @@
 # StayBook PRD Implementation Tracker
 
-Last audited: 2026-06-17
+Last audited: 2026-06-18
 
 Source of truth: `docs/PRD.md`
 
 Verification snapshot:
 
-- `npm run test` passes: 4 server test files, 32 tests.
+- `npm run test` passes: 4 server test files, 28 tests.
 - `npm run check-types` passes.
 
 ## Done
@@ -162,10 +162,10 @@ Verification snapshot:
 
 ### Rate Limiting And Security Hardening
 
-- [ ] Add rate limiting to authentication endpoints.
-- [ ] Make login and registration limits stricter than ordinary read endpoints.
-- [ ] Add ordinary read endpoint rate limits if desired by the PRD interpretation.
-- [ ] Review CORS/cookie settings for local development and production deployment.
+- [x] Add rate limiting to authentication endpoints.
+- [x] Make login and registration limits stricter than ordinary read endpoints.
+- [x] Add ordinary read endpoint rate limits if desired by the PRD interpretation.
+- [x] Review CORS/cookie settings for local development and production deployment.
 
 ### Testing
 
