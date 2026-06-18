@@ -3,7 +3,6 @@ import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import Header from "@/components/header";
-import { ThemeProvider } from "@/components/theme-provider";
 
 import "../index.css";
 
@@ -34,20 +33,13 @@ function RootComponent() {
   return (
     <>
       <HeadContent />
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="light"
-        disableTransitionOnChange
-        storageKey="vite-ui-theme"
-      >
-        <div className="flex flex-col min-h-screen">
-          <Header />
-          <div className="flex-1">
-            <Outlet />
-          </div>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <div className="flex-1">
+          <Outlet />
         </div>
-        <Toaster richColors />
-      </ThemeProvider>
+      </div>
+      <Toaster richColors />
       <TanStackRouterDevtools position="bottom-left" />
     </>
   );
