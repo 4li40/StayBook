@@ -28,26 +28,33 @@ npm install
 This project uses PostgreSQL with Drizzle ORM.
 
 1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
+2. Copy the sample env files and fill in your values:
 
-3. Apply the migrations to your database:
+   ```bash
+   cp apps/server/.env.example apps/server/.env
+   cp apps/web/.env.example apps/web/.env
+   ```
 
-```bash
-npm run db:migrate
-```
+3. Update your `apps/server/.env` file with your PostgreSQL connection details and a random auth secret (generate one with `openssl rand -base64 32`).
 
-4. Seed room inventory and the reviewer staff account:
+4. Apply the migrations to your database:
 
-```bash
-npm run db:seed
-```
+   ```bash
+   npm run db:migrate
+   ```
 
-Seeded staff credentials:
+5. Seed room inventory and the reviewer staff account:
 
-```txt
-Email: staff@staybook.test
-Password: StayBook123!
-```
+   ```bash
+   npm run db:seed
+   ```
+
+   Seeded staff credentials:
+
+   ```txt
+   Email: staff@staybook.test
+   Password: StayBook123!
+   ```
 
 Then, run the development server:
 
@@ -57,6 +64,26 @@ npm run dev
 
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
 The API is running at [http://localhost:3000](http://localhost:3000).
+
+## Environment Variables
+
+Sample files are provided at `apps/server/.env.example` and `apps/web/.env.example`. Copy them to `.env` and replace placeholder values.
+
+### Server (`apps/server/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (e.g. Neon, Supabase, or local). |
+| `BETTER_AUTH_SECRET` | Yes | Random secret, 32+ characters. Generate with `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | Yes | Public URL where the API server is reachable. Defaults to `http://localhost:3000` in dev. |
+| `CORS_ORIGIN` | Yes | Public URL where the web app is reachable (CORS allow-list origin). |
+| `NODE_ENV` | No | `development`, `production`, or `test`. Defaults to `development`. |
+
+### Web (`apps/web/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_SERVER_URL` | Yes | Public URL where the API server is reachable. |
 
 ## UI Customization
 

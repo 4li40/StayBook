@@ -102,8 +102,8 @@ Verification snapshot:
 - [x] Add field-level validation errors to room search and booking forms instead of only showing top-level API/toast errors.
 - [x] Preserve user-entered values in room and reservation forms when server validation fails.
 - [x] Add pagination UI for guest reservations. The API has metadata, but the dashboard fetches `pageSize=50` and does not expose pagination controls.
-- [ ] Document seed command and seeded credentials in README once deterministic users exist.
-- [ ] Add sample environment documentation for required secrets and database URLs.
+- [x] Document seed command and seeded credentials in README once deterministic users exist.
+- [x] Add sample environment documentation for required secrets and database URLs.
 - [x] Fix `npm run check-types` failure in `apps/server/src/api/dates.test.ts`.
 
 ## Still To Implement
