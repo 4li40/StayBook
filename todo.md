@@ -92,11 +92,11 @@ Verification snapshot:
 - [x] Change money storage to match the PRD: schema currently stores `numeric(10, 2)` dollar amounts, while the PRD asks for prices in cents.
 - [x] Wrap booking creation in an explicit transaction. Current implementation uses one `insert ... select` plus the database constraint, but the PRD specifically asks for a transaction.
 - [x] Centralize reservation overlap and booking business logic in domain services. It currently lives directly inside route handlers.
-- [ ] Make room detail access respect guest availability expectations. `/api/rooms/:roomId` currently returns inactive rooms too.
+- [x] Make room detail access respect guest availability expectations. `/api/rooms/:roomId` currently returns inactive rooms too.
 - [ ] Preserve selected search dates and guest count when moving from room search to room detail/booking.
 - [ ] Add a dedicated booking confirmation view or flow if the PRD's "booking confirmation" route is meant to be more than a toast.
 - [ ] Split guest reservations into upcoming and past views instead of showing one combined list.
-- [ ] Derive and display operational reservation states: upcoming, active, past, and cancelled.
+- [x] Derive and display operational reservation states: upcoming, active, past, and cancelled.
 - [ ] Improve cancelled reservation display with a clearer visual label/badge, not just status text.
 - [ ] Hide or disable guest cancellation proactively when the 24-hour cutoff has passed, while keeping server enforcement.
 - [ ] Add field-level validation errors to room search and booking forms instead of only showing top-level API/toast errors.

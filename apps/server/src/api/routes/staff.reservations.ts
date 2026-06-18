@@ -9,9 +9,9 @@ import {
   classifyReservationState,
   differenceInNights,
   todayUtcDate,
-  type ReservationDerivedState,
 } from "../dates";
 import { ApiError, asyncHandler, sendData } from "../http";
+import { reservationStateConditions } from "../../services/booking";
 
 type ReservationStatus = "confirmed" | "cancelled";
 
@@ -123,19 +123,6 @@ type ListStaffReservationsQuery = z.infer<
 >;
 
 export const staffReservationsRouter = Router();
-
-const reservationStateConditions: Record<
-  ReservationDerivedState,
-  (today: string) => SQL
-> = {
-  cancelled: () => sql`reservation.status = 'cancelled'`,
-  upcoming: (today) =>
-    sql`reservation.status = 'confirmed' and reservation.check_in_date > ${today}::date`,
-  active: (today) =>
-    sql`reservation.status = 'confirmed' and reservation.check_in_date <= ${today}::date and reservation.check_out_date > ${today}::date`,
-  past: (today) =>
-    sql`reservation.status = 'confirmed' and reservation.check_out_date <= ${today}::date`,
-};
 
 function buildStaffReservationFilters(
   query: ListStaffReservationsQuery,

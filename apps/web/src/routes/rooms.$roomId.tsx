@@ -7,7 +7,7 @@ import { ArrowLeft, BedDouble, CalendarDays, Check, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { apiRequest, getErrorMessage, type RoomDetail } from "@/lib/api";
+import { apiRequest, ApiClientError, getErrorMessage, type RoomDetail } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { formatCents } from "@/lib/format";
 
@@ -42,18 +42,24 @@ function RoomDetailComponent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isNotFound, setIsNotFound] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const { data: session } = authClient.useSession();
 
   const loadRoom = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
+    setIsNotFound(false);
 
     try {
       const data = await apiRequest<RoomDetail>(`/api/rooms/${roomId}`);
       setRoom(data);
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      if (error instanceof ApiClientError && error.status === 404) {
+        setIsNotFound(true);
+      } else {
+        setErrorMessage(getErrorMessage(error));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +116,20 @@ function RoomDetailComponent() {
       ) : errorMessage ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {errorMessage}
+        </div>
+      ) : isNotFound ? (
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-10 text-center">
+          <BedDouble aria-hidden="true" className="text-muted-foreground size-10" />
+          <div className="flex flex-col gap-1.5">
+            <h2 className="font-heading text-lg text-foreground">Room Not Available</h2>
+            <p className="text-sm text-muted-foreground">
+              We couldn't find this room. Browse other rooms instead.
+            </p>
+          </div>
+          <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+            <ArrowLeft className="h-4 w-4" />
+            Back to search
+          </Link>
         </div>
       ) : room ? (
         <div className="flex flex-col gap-6">

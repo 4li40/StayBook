@@ -1,5 +1,5 @@
 import { db } from "@StayBook/db";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 
@@ -9,15 +9,21 @@ import {
   requireSession,
 } from "../auth";
 import {
+  classifyReservationState,
   isMoreThan24HoursBeforeCheckIn,
   stayDateRangeSchema,
+  todayUtcDate,
 } from "../dates";
 import {
   ApiError,
   asyncHandler,
   sendData,
 } from "../http";
-import { createBooking, type ReservationRow } from "../../services/booking";
+import {
+  createBooking,
+  reservationStateConditions,
+  type ReservationRow,
+} from "../../services/booking";
 
 type ReservationStatus = "confirmed" | "cancelled";
 
@@ -44,10 +50,13 @@ const createReservationBodySchema = stayDateRangeSchema.extend({
   guestCount: z.number().int().min(1).max(20),
 });
 
-const listReservationsQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
-});
+const listReservationsQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    state: z.enum(["upcoming", "active", "past", "cancelled"]).optional(),
+  })
+  .strict();
 
 const reservationParamsSchema = z.object({
   reservationId: z.string().uuid(),
@@ -84,12 +93,21 @@ reservationsRouter.get(
   asyncHandler(async (req, res) => {
     const user = getAuthenticatedUser(req);
     const query = listReservationsQuerySchema.parse(req.query);
+    const today = todayUtcDate();
     const offset = (query.page - 1) * query.pageSize;
+
+    const conditions: SQL[] = [sql`reservation.guest_id = ${user.id}`];
+
+    if (query.state) {
+      conditions.push(reservationStateConditions[query.state](today));
+    }
+
+    const whereClause = sql`where ${sql.join(conditions, sql` and `)}`;
 
     const countResult = await db.execute<CountRow>(sql`
       select count(*)::text as total
-      from reservations
-      where guest_id = ${user.id}
+      from reservations reservation
+      ${whereClause}
     `);
 
     const result = await db.execute<ReservationListRow>(sql`
@@ -117,7 +135,7 @@ reservationsRouter.get(
       left join room_photos primary_photo
         on primary_photo.room_id = room.id
         and primary_photo.is_primary = true
-      where reservation.guest_id = ${user.id}
+      ${whereClause}
       order by reservation.check_in_date desc, reservation.created_at desc
       limit ${query.pageSize}
       offset ${offset}
@@ -132,6 +150,12 @@ reservationsRouter.get(
       checkOutDate: row.checkOutDate,
       totalPrice: row.totalPrice,
       status: row.status,
+      state: classifyReservationState(
+        row.status,
+        row.checkInDate,
+        row.checkOutDate,
+        today,
+      ),
       cancelledAt: row.cancelledAt,
       cancelledByUserId: row.cancelledByUserId,
       cancellationReason: row.cancellationReason,

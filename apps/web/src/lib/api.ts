@@ -113,6 +113,7 @@ export type Reservation = {
   checkOutDate: string;
   totalPrice: number;
   status: ReservationStatus;
+  state: ReservationDerivedState;
   cancelledAt: string | null;
   cancelledByUserId: string | null;
   cancellationReason: string | null;

@@ -2,6 +2,7 @@ import { neonSql } from "@StayBook/db";
 import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
+import { type ReservationDerivedState } from "../api/dates";
 import { ApiError, getDatabaseErrorCode } from "../api/http";
 
 const roomValidationSchema = z.object({
@@ -134,3 +135,16 @@ export function overlappingReservationExistsSql(
         && daterange(${checkInDate}::date, ${checkOutDate}::date, '[)')
   )`;
 }
+
+export const reservationStateConditions: Record<
+  ReservationDerivedState,
+  (today: string) => SQL
+> = {
+  cancelled: () => sql`reservation.status = 'cancelled'`,
+  upcoming: (today) =>
+    sql`reservation.status = 'confirmed' and reservation.check_in_date > ${today}::date`,
+  active: (today) =>
+    sql`reservation.status = 'confirmed' and reservation.check_in_date <= ${today}::date and reservation.check_out_date > ${today}::date`,
+  past: (today) =>
+    sql`reservation.status = 'confirmed' and reservation.check_out_date <= ${today}::date`,
+};

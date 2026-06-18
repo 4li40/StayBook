@@ -198,6 +198,7 @@ roomsRouter.get(
       left join amenities amenity
         on amenity.id = room_amenity.amenity_id
       where room.id = ${params.roomId}::uuid
+        and room.active = true
       group by room.id
       limit 1
     `);
