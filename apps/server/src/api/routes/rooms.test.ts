@@ -102,7 +102,7 @@ describe("GET /api/rooms", () => {
     ]);
   });
 
-  it("filters overlapping confirmed reservations out of date-based searches", async () => {
+  it("marks overlapping confirmed reservations as booked in date-based searches", async () => {
     mockedExecute.mockResolvedValueOnce(mockResult([roomListRow()]));
 
     await request(app).get(
@@ -112,9 +112,10 @@ describe("GET /api/rooms", () => {
     const sqlText = normalizeSql(mockedExecute.mock.calls[0]?.[0]);
     expect(sqlText).toContain("room.active = true");
     expect(sqlText).toContain("room.max_guests >=");
-    expect(sqlText).toContain("and not exists");
+    expect(sqlText).toContain("exists");
     expect(sqlText).toContain("reservation.status = 'confirmed'");
     expect(sqlText).toContain("daterange(reservation.check_in_date, reservation.check_out_date, '[)')");
+    expect(sqlText).not.toContain("and not exists");
   });
 
   it("does not add an overlap filter when dates are omitted", async () => {

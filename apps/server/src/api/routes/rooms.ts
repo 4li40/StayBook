@@ -118,7 +118,6 @@ roomsRouter.get(
           query.checkOutDate!,
         )
       : sql`false`;
-    const availabilityClause = hasDates ? sql`and not ${bookedColumn}` : sql``;
 
     const result = await db.execute<RoomListRow>(sql`
       select
@@ -146,7 +145,6 @@ roomsRouter.get(
         on amenity.id = room_amenity.amenity_id
       where room.active = true
         and room.max_guests >= ${query.guests}
-        ${availabilityClause}
       group by room.id, primary_photo.url
       order by room.nightly_price asc, room.name asc
     `);
