@@ -1,5 +1,5 @@
 import { db } from "@StayBook/db";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 
@@ -74,6 +74,17 @@ const roomBodySchema = z
     })),
   }));
 
+const listStaffRoomsQuerySchema = z
+  .object({
+    status: z.enum(["active", "inactive"]).optional(),
+    type: z.string().trim().min(1).optional(),
+    amenityId: z.string().uuid().optional(),
+    search: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+type ListStaffRoomsQuery = z.infer<typeof listStaffRoomsQuerySchema>;
+
 export const staffRouter = Router();
 
 staffRouter.use(requireSession, requireStaff);
@@ -89,6 +100,43 @@ function normalizeStaffRoom(room: StaffRoomListRow) {
     photos,
     amenities: Array.isArray(room.amenities) ? room.amenities : [],
   };
+}
+
+function buildStaffRoomFilters(query: ListStaffRoomsQuery): SQL {
+  const conditions: SQL[] = [];
+
+  if (query.status) {
+    conditions.push(sql`room.active = ${query.status === "active"}`);
+  }
+
+  if (query.type) {
+    conditions.push(sql`room.type = ${query.type}`);
+  }
+
+  if (query.amenityId) {
+    conditions.push(sql`exists (
+      select 1
+      from room_amenities ra
+      join amenities a on a.id = ra.amenity_id
+      where ra.room_id = room.id
+        and a.id = ${query.amenityId}::uuid
+    )`);
+  }
+
+  if (query.search) {
+    const escaped = query.search
+      .replace(/!/g, "!!")
+      .replace(/%/g, "!%")
+      .replace(/_/g, "!_");
+    const pattern = `%${escaped}%`;
+    conditions.push(
+      sql`(room.name ilike ${pattern} escape '!' or room.type ilike ${pattern} escape '!')`,
+    );
+  }
+
+  return conditions.length
+    ? sql`where ${sql.join(conditions, sql` and `)}`
+    : sql``;
 }
 
 async function getStaffRooms(whereClause = sql``) {
@@ -245,8 +293,10 @@ staffRouter.get(
 
 staffRouter.get(
   "/rooms",
-  asyncHandler(async (_req, res) => {
-    const rooms = await getStaffRooms();
+  asyncHandler(async (req, res) => {
+    const query = listStaffRoomsQuerySchema.parse(req.query);
+    const whereClause = buildStaffRoomFilters(query);
+    const rooms = await getStaffRooms(whereClause);
 
     sendData(res, {
       rooms,

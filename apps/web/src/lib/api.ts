@@ -88,6 +88,15 @@ export type StaffRoomResponse = {
   room: StaffRoom;
 };
 
+export type StaffRoomStatus = "active" | "inactive";
+
+export type StaffRoomFilters = {
+  status?: StaffRoomStatus;
+  type?: string;
+  amenityId?: string;
+  search?: string;
+};
+
 export type ReservationStatus = "confirmed" | "cancelled";
 
 export type ReservationDerivedState =
@@ -183,6 +192,26 @@ export function buildStaffReservationsQuery(
   }
   if (filters.dateTo) {
     params.set("dateTo", filters.dateTo);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+export function buildStaffRoomsQuery(filters: StaffRoomFilters): string {
+  const params = new URLSearchParams();
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+  if (filters.type) {
+    params.set("type", filters.type);
+  }
+  if (filters.amenityId) {
+    params.set("amenityId", filters.amenityId);
+  }
+  if (filters.search) {
+    params.set("search", filters.search);
   }
 
   const query = params.toString();

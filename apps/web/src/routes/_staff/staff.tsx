@@ -10,6 +10,13 @@ import {
 import { Checkbox } from "@StayBook/ui/components/checkbox";
 import { Input } from "@StayBook/ui/components/input";
 import { Label } from "@StayBook/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@StayBook/ui/components/select";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { Textarea } from "@StayBook/ui/components/textarea";
 import { createFileRoute } from "@tanstack/react-router";
@@ -17,6 +24,7 @@ import {
   BedDouble,
   Check,
   CircleOff,
+  ListFilter,
   Pencil,
   Plus,
   RefreshCw,
@@ -25,18 +33,21 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
   ApiClientError,
   apiRequest,
+  buildStaffRoomsQuery,
   getErrorMessage,
   type Amenity,
   type StaffAmenitiesResponse,
   type StaffRoom,
+  type StaffRoomFilters,
   type StaffRoomInput,
   type StaffRoomResponse,
+  type StaffRoomStatus,
   type StaffRoomsResponse,
 } from "@/lib/api";
 
@@ -127,6 +138,56 @@ function collectFieldErrors(error: unknown): FieldErrors {
   }, {});
 }
 
+type RoomFilterForm = {
+  status: string;
+  type: string;
+  amenityId: string;
+  search: string;
+};
+
+type RoomFilterFieldErrors = Partial<
+  Record<keyof RoomFilterForm | "form", string>
+>;
+
+const emptyRoomFilterForm: RoomFilterForm = {
+  status: "",
+  type: "",
+  amenityId: "",
+  search: "",
+};
+
+const statusOptions: Array<{ value: StaffRoomStatus; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
+
+function toRoomFilters(form: RoomFilterForm): StaffRoomFilters {
+  const status = form.status as StaffRoomFilters["status"];
+  return {
+    status: statusOptions.some((option) => option.value === status) ? status : undefined,
+    type: form.type.trim() || undefined,
+    amenityId: form.amenityId || undefined,
+    search: form.search.trim() || undefined,
+  };
+}
+
+function collectRoomFilterErrors(error: unknown): RoomFilterFieldErrors {
+  if (!(error instanceof ApiClientError)) {
+    return {};
+  }
+
+  return (error.issues ?? []).reduce<RoomFilterFieldErrors>(
+    (fieldErrors, issue) => {
+      const field = issue.path.split(".")[0] as keyof RoomFilterForm;
+      if (field in emptyRoomFilterForm && !fieldErrors[field]) {
+        fieldErrors[field] = issue.message;
+      }
+      return fieldErrors;
+    },
+    {},
+  );
+}
+
 function RouteComponent() {
   const { session } = Route.useRouteContext();
   const [rooms, setRooms] = useState<StaffRoom[]>([]);
@@ -140,27 +201,70 @@ function RouteComponent() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadInventory = useCallback(async () => {
+  const [filterForm, setFilterForm] = useState<RoomFilterForm>(emptyRoomFilterForm);
+  const [appliedFilters, setAppliedFilters] = useState<StaffRoomFilters>({});
+  const [filterErrors, setFilterErrors] = useState<RoomFilterFieldErrors>({});
+  const [knownRoomTypes, setKnownRoomTypes] = useState<string[]>([]);
+  const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const loadInventory = useCallback(async (filters: StaffRoomFilters = {}) => {
+    const requestId = ++requestIdRef.current;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsLoading(true);
     setErrorMessage(null);
+    setFilterErrors({});
 
     try {
       const [roomsData, amenitiesData] = await Promise.all([
-        apiRequest<StaffRoomsResponse>("/api/staff/rooms"),
-        apiRequest<StaffAmenitiesResponse>("/api/staff/amenities"),
+        apiRequest<StaffRoomsResponse>(`/api/staff/rooms${buildStaffRoomsQuery(filters)}`, {
+          signal: controller.signal,
+        }),
+        apiRequest<StaffAmenitiesResponse>("/api/staff/amenities", {
+          signal: controller.signal,
+        }),
       ]);
+      if (requestId !== requestIdRef.current) return;
       setRooms(roomsData.rooms);
       setAmenities(amenitiesData.amenities);
+      setKnownRoomTypes((current) => {
+        const merged = new Set(current);
+        for (const room of roomsData.rooms) {
+          merged.add(room.type);
+        }
+        return Array.from(merged).sort();
+      });
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      if (requestId !== requestIdRef.current) return;
+      if (controller.signal.aborted) return;
+      const fieldErrors = collectRoomFilterErrors(error);
+      const hasUnmappedIssues =
+        error instanceof ApiClientError &&
+        (error.issues?.some((issue) => {
+          const field = issue.path.split(".")[0] as keyof RoomFilterForm;
+          return !(field in emptyRoomFilterForm);
+        }) ?? false);
+      if (Object.keys(fieldErrors).length > 0 || hasUnmappedIssues) {
+        setFilterErrors({
+          ...fieldErrors,
+          ...(hasUnmappedIssues ? { form: getErrorMessage(error) } : {}),
+        });
+      } else {
+        setFilterErrors({});
+        setErrorMessage(getErrorMessage(error));
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    loadInventory();
-  }, [loadInventory]);
+    loadInventory(appliedFilters);
+  }, [appliedFilters, loadInventory]);
 
   const activeCount = useMemo(
     () => rooms.reduce((count, room) => count + (room.active ? 1 : 0), 0),
@@ -172,8 +276,39 @@ function RouteComponent() {
     ? rooms.find((room) => room.id === editingRoomId)
     : null;
 
+  const hasActiveFilters = Boolean(
+    appliedFilters.status ||
+      appliedFilters.type ||
+      appliedFilters.amenityId ||
+      appliedFilters.search,
+  );
+
   if (!staffUser) {
     return null;
+  }
+
+  function updateFilterField<Key extends keyof RoomFilterForm>(
+    key: Key,
+    value: RoomFilterForm[Key],
+  ) {
+    setFilterForm((current) => ({ ...current, [key]: value }));
+    setFilterErrors((current) => ({
+      ...current,
+      [key]: undefined,
+      form: undefined,
+    }));
+  }
+
+  function applyFilters() {
+    setFilterErrors({});
+    setAppliedFilters(toRoomFilters(filterForm));
+  }
+
+  function resetFilters() {
+    setFilterForm(emptyRoomFilterForm);
+    setFilterErrors({});
+    setAppliedFilters({});
+    setKnownRoomTypes([]);
   }
 
   function updateForm<Key extends keyof RoomFormState>(
@@ -273,7 +408,7 @@ function RouteComponent() {
       });
 
       toast.success(editingRoomId ? "Room updated." : "Room created.");
-      await loadInventory();
+      await loadInventory(appliedFilters);
       setIsFormOpen(false);
       setEditingRoomId(null);
       setForm(emptyRoomForm);
@@ -305,7 +440,7 @@ function RouteComponent() {
         { method: "POST" },
       );
       toast.success(active ? "Room reactivated." : "Room deactivated.");
-      await loadInventory();
+      await loadInventory(appliedFilters);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -325,7 +460,12 @@ function RouteComponent() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={loadInventory} disabled={isLoading}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => loadInventory(appliedFilters)}
+            disabled={isLoading}
+          >
             <RefreshCw data-icon="inline-start" />
             Refresh
           </Button>
@@ -362,6 +502,126 @@ function RouteComponent() {
           </CardHeader>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardDescription>
+            Narrow rooms by status, type, amenity, or name.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              applyFilters();
+            }}
+          >
+            {filterErrors.form ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {filterErrors.form}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-status">Status</Label>
+                <Select
+                  value={filterForm.status}
+                  onValueChange={(value) =>
+                    updateFilterField("status", String(value ?? ""))
+                  }
+                >
+                  <SelectTrigger id="filter-status" className="w-full">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All statuses</SelectItem>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-type">Type</Label>
+                <Select
+                  value={filterForm.type}
+                  onValueChange={(value) =>
+                    updateFilterField("type", String(value ?? ""))
+                  }
+                >
+                  <SelectTrigger id="filter-type" className="w-full">
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All types</SelectItem>
+                    {knownRoomTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-amenity">Amenity</Label>
+                <Select
+                  value={filterForm.amenityId}
+                  onValueChange={(value) =>
+                    updateFilterField("amenityId", String(value ?? ""))
+                  }
+                >
+                  <SelectTrigger id="filter-amenity" className="w-full">
+                    <SelectValue placeholder="All amenities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All amenities</SelectItem>
+                    {amenities.map((amenity) => (
+                      <SelectItem key={amenity.id} value={amenity.id}>
+                        {amenity.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="filter-search">Search</Label>
+                <Input
+                  id="filter-search"
+                  type="text"
+                  value={filterForm.search}
+                  onChange={(event) =>
+                    updateFilterField("search", event.target.value)
+                  }
+                  placeholder="Room name or type"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={isLoading}>
+                <ListFilter data-icon="inline-start" />
+                Apply Filters
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetFilters}
+                disabled={isLoading || !hasActiveFilters}
+              >
+                Reset
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {isFormOpen ? (
         <div
@@ -626,9 +886,11 @@ function RouteComponent() {
             <div className="flex flex-col items-center gap-4 rounded-lg border border-border/60 bg-muted/30 p-10 text-center">
               <BedDouble aria-hidden="true" className="size-10 text-muted-foreground" />
               <div className="flex flex-col gap-1.5">
-                <h2 className="font-heading text-lg text-foreground">No Rooms Yet</h2>
+                <h2 className="font-heading text-lg text-foreground">No Rooms Found</h2>
                 <p className="text-sm text-muted-foreground">
-                  Use Add Room to create the first room.
+                  {hasActiveFilters
+                    ? "Try adjusting or resetting the filters."
+                    : "Use Add Room to create the first room."}
                 </p>
               </div>
             </div>
