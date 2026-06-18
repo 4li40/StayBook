@@ -93,14 +93,14 @@ Verification snapshot:
 - [x] Wrap booking creation in an explicit transaction. Current implementation uses one `insert ... select` plus the database constraint, but the PRD specifically asks for a transaction.
 - [x] Centralize reservation overlap and booking business logic in domain services. It currently lives directly inside route handlers.
 - [x] Make room detail access respect guest availability expectations. `/api/rooms/:roomId` currently returns inactive rooms too.
-- [ ] Preserve selected search dates and guest count when moving from room search to room detail/booking.
-- [ ] Add a dedicated booking confirmation view or flow if the PRD's "booking confirmation" route is meant to be more than a toast.
+- [x] Preserve selected search dates and guest count when moving from room search to room detail/booking.
+- [x] Add a dedicated booking confirmation view or flow if the PRD's "booking confirmation" route is meant to be more than a toast.
 - [ ] Split guest reservations into upcoming and past views instead of showing one combined list.
 - [x] Derive and display operational reservation states: upcoming, active, past, and cancelled.
 - [ ] Improve cancelled reservation display with a clearer visual label/badge, not just status text.
 - [ ] Hide or disable guest cancellation proactively when the 24-hour cutoff has passed, while keeping server enforcement.
-- [ ] Add field-level validation errors to room search and booking forms instead of only showing top-level API/toast errors.
-- [ ] Preserve user-entered values in room and reservation forms when server validation fails.
+- [x] Add field-level validation errors to room search and booking forms instead of only showing top-level API/toast errors.
+- [x] Preserve user-entered values in room and reservation forms when server validation fails.
 - [ ] Add pagination UI for guest reservations. The API has metadata, but the dashboard fetches `pageSize=50` and does not expose pagination controls.
 - [ ] Document seed command and seeded credentials in README once deterministic users exist.
 - [ ] Add sample environment documentation for required secrets and database URLs.

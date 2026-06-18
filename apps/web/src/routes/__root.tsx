@@ -40,9 +40,11 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
+        <div className="flex flex-col min-h-screen">
           <Header />
-          <Outlet />
+          <div className="flex-1">
+            <Outlet />
+          </div>
         </div>
         <Toaster richColors />
       </ThemeProvider>

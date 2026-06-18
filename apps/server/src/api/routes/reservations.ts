@@ -183,6 +183,81 @@ reservationsRouter.get(
   }),
 );
 
+reservationsRouter.get(
+  "/me/:reservationId",
+  asyncHandler(async (req, res) => {
+    const user = getAuthenticatedUser(req);
+    const params = reservationParamsSchema.parse(req.params);
+    const today = todayUtcDate();
+
+    const result = await db.execute<ReservationListRow>(sql`
+      select
+        reservation.id,
+        reservation.room_id as "roomId",
+        reservation.guest_id as "guestId",
+        reservation.check_in_date::text as "checkInDate",
+        reservation.check_out_date::text as "checkOutDate",
+        reservation.total_price as "totalPrice",
+        reservation.status,
+        reservation.cancelled_at::text as "cancelledAt",
+        reservation.cancelled_by_user_id as "cancelledByUserId",
+        reservation.cancellation_reason as "cancellationReason",
+        reservation.created_at::text as "createdAt",
+        reservation.updated_at::text as "updatedAt",
+        room.name as "roomName",
+        room.type as "roomType",
+        room.max_guests as "roomMaxGuests",
+        room.nightly_price as "roomNightlyPrice",
+        primary_photo.url as "roomPrimaryPhotoUrl"
+      from reservations reservation
+      inner join rooms room
+        on room.id = reservation.room_id
+      left join room_photos primary_photo
+        on primary_photo.room_id = room.id
+        and primary_photo.is_primary = true
+      where reservation.id = ${params.reservationId}::uuid
+        and reservation.guest_id = ${user.id}
+      limit 1
+    `);
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new ApiError(404, "NOT_FOUND", "Reservation was not found.");
+    }
+
+    sendData(res, {
+      reservation: {
+        id: row.id,
+        roomId: row.roomId,
+        guestId: row.guestId,
+        checkInDate: row.checkInDate,
+        checkOutDate: row.checkOutDate,
+        totalPrice: row.totalPrice,
+        status: row.status,
+        state: classifyReservationState(
+          row.status,
+          row.checkInDate,
+          row.checkOutDate,
+          today,
+        ),
+        cancelledAt: row.cancelledAt,
+        cancelledByUserId: row.cancelledByUserId,
+        cancellationReason: row.cancellationReason,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        room: {
+          id: row.roomId,
+          name: row.roomName,
+          type: row.roomType,
+          maxGuests: row.roomMaxGuests,
+          nightlyPrice: row.roomNightlyPrice,
+          primaryPhotoUrl: row.roomPrimaryPhotoUrl,
+        },
+      },
+    });
+  }),
+);
+
 reservationsRouter.post(
   "/:reservationId/cancel",
   asyncHandler(async (req, res) => {

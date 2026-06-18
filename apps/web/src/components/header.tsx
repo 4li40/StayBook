@@ -19,21 +19,21 @@ export default function Header() {
   ];
 
   return (
-    <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 w-full max-w-6xl flex-row items-center justify-between px-4">
-        <nav className="flex items-center gap-6">
-          <Link to="/" className="font-heading text-xl text-foreground tracking-tight">
+    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md transition-all">
+      <div className="mx-auto flex h-16 w-full max-w-6xl flex-row items-center justify-between px-6">
+        <nav className="flex items-center gap-8">
+          <Link to="/" className="font-heading text-2xl text-foreground tracking-tight hover:opacity-90 transition-opacity">
             StayBook
           </Link>
-          <div className="flex items-center gap-4 text-sm font-medium">
+          <div className="flex items-center gap-6 text-sm font-medium">
             {links.map(({ to, label }) => {
               return (
                 <Link
                   key={to}
                   to={to}
-                  className="text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="text-muted-foreground/90 transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 py-1"
                   activeProps={{
-                    className: "text-foreground",
+                    className: "text-foreground font-semibold",
                   }}
                 >
                   {label}
@@ -42,7 +42,7 @@ export default function Header() {
             })}
           </div>
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ModeToggle />
           <UserMenu />
         </div>

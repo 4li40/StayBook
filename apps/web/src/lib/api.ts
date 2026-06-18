@@ -139,6 +139,10 @@ export type ReservationsResponse = {
   };
 };
 
+export type ReservationResponse = {
+  reservation: Reservation;
+};
+
 export type StaffReservation = Reservation & {
   state: ReservationDerivedState;
   guest: {
