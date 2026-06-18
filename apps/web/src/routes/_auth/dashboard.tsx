@@ -1,13 +1,7 @@
 import { Button } from "@StayBook/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@StayBook/ui/components/card";
+import { Card, CardContent, CardTitle } from "@StayBook/ui/components/card";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
+import { PaginationControls } from "@/components/pagination-controls";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { BedDouble, CalendarX, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -19,7 +13,9 @@ import {
   type Reservation,
   type ReservationsResponse,
 } from "@/lib/api";
+import { isMoreThan24HoursBeforeCheckIn } from "@/lib/dates";
 import { formatCents } from "@/lib/format";
+import { reservationBadgePresentation } from "@/lib/reservation-badges";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: RouteComponent,
@@ -33,12 +29,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 function formatDate(date: string) {
   return dateFormatter.format(new Date(`${date}T00:00:00`));
-}
-
-function canCancelReservation(checkInDate: string) {
-  const checkIn = Date.parse(`${checkInDate}T00:00:00.000Z`);
-  const cutoff = 24 * 60 * 60 * 1000;
-  return checkIn - Date.now() > cutoff;
 }
 
 function RouteComponent() {
@@ -219,25 +209,8 @@ function RouteComponent() {
 
         {!isLoading
           ? reservations.map((reservation) => {
-              const isCancellable = reservation.status !== "cancelled" && canCancelReservation(reservation.checkInDate);
-
-              // Setup beautiful state badge
-              let badgeStyle = "bg-primary text-primary-foreground border-transparent";
-              let badgeText = "Confirmed";
-              
-              if (reservation.status === "cancelled") {
-                badgeStyle = "bg-destructive/10 text-destructive border-destructive/25";
-                badgeText = "Cancelled";
-              } else if (reservation.state === "active") {
-                badgeStyle = "bg-gold-container/30 text-on-gold-container border-gold-container/40";
-                badgeText = "Active Stay";
-              } else if (reservation.state === "past") {
-                badgeStyle = "bg-secondary text-muted-foreground border-border/40";
-                badgeText = "Past Stay";
-              } else if (reservation.state === "upcoming") {
-                badgeStyle = "bg-sage-container/10 text-on-sage-container border-sage-container/20";
-                badgeText = "Upcoming Stay";
-              }
+              const isCancellable = reservation.status !== "cancelled" && isMoreThan24HoursBeforeCheckIn(reservation.checkInDate);
+              const badge = reservationBadgePresentation(reservation);
 
               return (
                 <Card key={reservation.id} className="overflow-hidden border border-ghost-border bg-card flex flex-col md:flex-row items-stretch shadow-xs hover:shadow-sm transition-all duration-300">
@@ -253,8 +226,10 @@ function RouteComponent() {
                         <BedDouble className="text-muted-foreground/60 size-6" />
                       </div>
                     )}
-                    <span className={`absolute top-3 left-3 rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${badgeStyle}`}>
-                      {badgeText}
+                    <span
+                      className={`absolute top-3 left-3 rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${badge.className}`}
+                    >
+                      {badge.label}
                     </span>
                   </div>
 
@@ -308,29 +283,15 @@ function RouteComponent() {
           : null}
 
         {/* Pagination UI */}
-        {!isLoading && pagination && pagination.pageCount > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="cursor-pointer h-9 px-4 text-xs font-semibold uppercase tracking-wider"
-            >
-              Previous
-            </Button>
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Page {page} of {pagination.pageCount}
-            </span>
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.min(pagination.pageCount, p + 1))}
-              disabled={page === pagination.pageCount}
-              className="cursor-pointer h-9 px-4 text-xs font-semibold uppercase tracking-wider"
-            >
-              Next
-            </Button>
-          </div>
-        )}
+        {!isLoading && pagination && pagination.pageCount > 1 ? (
+          <PaginationControls
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            pageCount={pagination.pageCount}
+            onPageChange={setPage}
+          />
+        ) : null}
       </section>
     </main>
   );

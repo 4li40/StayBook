@@ -11,6 +11,7 @@
     "check-types": "vite build && tsc --noEmit"
   },
   "dependencies": {
+    "@StayBook/dates": "*",
     "@StayBook/env": "*",
     "@StayBook/ui": "*",
     "@hookform/resolvers": "^5.2.2",

@@ -10,6 +10,7 @@ import {
 } from "@StayBook/ui/components/card";
 import { Input } from "@StayBook/ui/components/input";
 import { Label } from "@StayBook/ui/components/label";
+import { Skeleton } from "@StayBook/ui/components/skeleton";
 import {
   Select,
   SelectContent,
@@ -17,14 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@StayBook/ui/components/select";
-import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { Textarea } from "@StayBook/ui/components/textarea";
+import { PaginationControls } from "@/components/pagination-controls";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BedDouble,
   CalendarX,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   X,
 } from "lucide-react";
@@ -46,6 +45,7 @@ import {
   type StaffRoomsResponse,
 } from "@/lib/api";
 import { formatCents } from "@/lib/format";
+import { stateBadgeVariant, statusBadgeVariant } from "@/lib/reservation-badges";
 
 export const Route = createFileRoute("/_staff/reservations")({
   component: RouteComponent,
@@ -162,27 +162,6 @@ function validateFilterForm(form: FilterForm): FilterFieldErrors {
   }
 
   return errors;
-}
-
-function statusBadgeVariant(
-  status: ReservationStatus,
-): React.ComponentProps<typeof Badge>["variant"] {
-  return status === "cancelled" ? "destructive" : "default";
-}
-
-function stateBadgeVariant(
-  state: ReservationDerivedState,
-): React.ComponentProps<typeof Badge>["variant"] {
-  switch (state) {
-    case "active":
-      return "default";
-    case "upcoming":
-      return "secondary";
-    case "past":
-      return "outline";
-    case "cancelled":
-      return "destructive";
-  }
 }
 
 function collectFilterErrors(error: unknown): FilterFieldErrors {
@@ -825,47 +804,13 @@ function RouteComponent() {
       </section>
 
       {!isLoading && reservations.length > 0 ? (
-        <section className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing{" "}
-            <span className="font-medium text-foreground tabular-nums">
-              {(pagination.page - 1) * pagination.pageSize + 1}
-            </span>
-            –
-            <span className="font-medium text-foreground tabular-nums">
-              {Math.min(pagination.page * pagination.pageSize, pagination.total)}
-            </span>{" "}
-            of{" "}
-            <span className="font-medium text-foreground tabular-nums">
-              {pagination.total}
-            </span>
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              onClick={() => goToPage(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-              aria-label="Previous page"
-            >
-              <ChevronLeft />
-            </Button>
-            <span className="text-sm tabular-nums">
-              Page {pagination.page} of {Math.max(pagination.pageCount, 1)}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              onClick={() => goToPage(pagination.page + 1)}
-              disabled={pagination.page >= pagination.pageCount}
-              aria-label="Next page"
-            >
-              <ChevronRight />
-            </Button>
-          </div>
-        </section>
+        <PaginationControls
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          pageCount={pagination.pageCount}
+          onPageChange={goToPage}
+        />
       ) : null}
 
       {cancellingReservation ? (

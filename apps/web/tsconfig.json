@@ -11,6 +11,8 @@
     "rootDirs": ["."],
     "paths": {
       "@/*": ["./src/*"],
+      "@StayBook/dates": ["../../packages/dates/src/index.ts"],
+      "@StayBook/dates/*": ["../../packages/dates/src/*"],
       "@StayBook/ui/*": ["../../packages/ui/src/*"]
     }
   }
