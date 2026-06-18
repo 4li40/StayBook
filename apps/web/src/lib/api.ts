@@ -143,6 +143,18 @@ export type ReservationResponse = {
   reservation: Reservation;
 };
 
+export type AvailabilityResponse = {
+  roomId: string;
+  available: boolean;
+  nights: number;
+  estimatedTotalPrice: string;
+  reasons: {
+    inactive: boolean;
+    insufficientCapacity: boolean;
+    overlappingReservation: boolean;
+  };
+};
+
 export type StaffReservation = Reservation & {
   state: ReservationDerivedState;
   guest: {

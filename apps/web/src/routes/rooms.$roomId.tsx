@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { apiRequest, ApiClientError, getErrorMessage, type ReservationResponse, type RoomDetail } from "@/lib/api";
+import { apiRequest, ApiClientError, getErrorMessage, type AvailabilityResponse, type ReservationResponse, type RoomDetail } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { collectFieldErrors } from "@/lib/forms";
 import { formatCents } from "@/lib/format";
@@ -74,6 +74,8 @@ function RoomDetailComponent() {
   const [isNotFound, setIsNotFound] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<BookingFormField, string>>>({});
+  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const { data: session } = authClient.useSession();
 
   const form = useForm({
@@ -159,6 +161,31 @@ function RoomDetailComponent() {
     loadRoom();
   }, [loadRoom]);
 
+  useEffect(() => {
+    if (!room || !formValues.checkInDate || !formValues.checkOutDate || nights <= 0) {
+      setAvailability(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsCheckingAvailability(true);
+
+    apiRequest<AvailabilityResponse>(
+      `/api/rooms/${roomId}/availability?checkInDate=${formValues.checkInDate}&checkOutDate=${formValues.checkOutDate}&guests=${formValues.guests}`,
+    )
+      .then((data) => {
+        if (!cancelled) setAvailability(data);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailability(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingAvailability(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [room, roomId, formValues.checkInDate, formValues.checkOutDate, formValues.guests, nights]);
+
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-10 pb-28 md:pb-16 animate-fade-in">
       <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground transition-colors w-fit">
@@ -206,9 +233,27 @@ function RoomDetailComponent() {
                   alt={room.photos[activePhotoIndex].altText ?? room.name}
                   className="h-full w-full object-cover transition-all duration-700"
                 />
-                <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full bg-sage-container/10 text-on-sage-container border border-sage-container/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] backdrop-blur-sm">
-                  <Sparkles aria-hidden="true" className="size-3" />
-                  Available
+                <span className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] backdrop-blur-sm ${
+                  availability?.available
+                    ? "bg-sage-container/10 text-on-sage-container border border-sage-container/20"
+                    : "bg-destructive/10 text-destructive border border-destructive/25"
+                }`}>
+                  {isCheckingAvailability ? (
+                    <>
+                      <span className="size-1.5 rounded-full bg-current animate-pulse" />
+                      Checking…
+                    </>
+                  ) : availability?.available ? (
+                    <>
+                      <Sparkles aria-hidden="true" className="size-3" />
+                      Available
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+                      Not Available
+                    </>
+                  )}
                 </span>
               </div>
               {room.photos.length > 1 ? (
@@ -309,9 +354,13 @@ function RoomDetailComponent() {
                     <span className="text-xs text-muted-foreground/80 font-sans font-normal ml-1">/ night</span>
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-sage-container/10 text-on-sage-container border border-sage-container/20 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em]">
-                  <span aria-hidden="true" className="size-1.5 rounded-full bg-on-sage-container" />
-                  Available
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] ${
+                  availability?.available
+                    ? "bg-sage-container/10 text-on-sage-container border border-sage-container/20"
+                    : "bg-destructive/10 text-destructive border border-destructive/25"
+                }`}>
+                  <span aria-hidden="true" className={`size-1.5 rounded-full ${availability?.available ? "bg-on-sage-container" : "bg-destructive"}`} />
+                  {availability?.available ? "Available" : "Unavailable"}
                 </span>
               </header>
 
@@ -429,12 +478,18 @@ function RoomDetailComponent() {
                   <p className="text-xs text-muted-foreground/80 text-center mt-1 font-sans">Select valid stay dates above</p>
                 )}
 
+                {availability !== null && !availability.available ? (
+                  <p className="text-xs text-destructive text-center font-sans bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+                    This room is already booked for the selected dates. Try different dates.
+                  </p>
+                ) : null}
+
                 <form.Subscribe
                   selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
                 >
                   {({ canSubmit, isSubmitting }) => (
-                    <Button type="submit" className="w-full mt-1 cursor-pointer h-12 text-sm font-semibold tracking-[0.04em] font-sans rounded-lg" disabled={!canSubmit || isSubmitting || nights === 0}>
-                      {isSubmitting ? "Processing Booking…" : "Confirm Booking"}
+                    <Button type="submit" className="w-full mt-1 cursor-pointer h-12 text-sm font-semibold tracking-[0.04em] font-sans rounded-lg" disabled={!canSubmit || isSubmitting || nights === 0 || isCheckingAvailability || (availability !== null && !availability.available)}>
+                      {isSubmitting ? "Processing Booking…" : isCheckingAvailability ? "Checking Availability…" : availability !== null && !availability.available ? "Room Unavailable" : "Confirm Booking"}
                     </Button>
                   )}
                 </form.Subscribe>
@@ -467,10 +522,10 @@ function RoomDetailComponent() {
               form.handleSubmit();
             }}
             className="h-11 px-6 text-xs font-semibold uppercase tracking-[0.08em] cursor-pointer rounded-lg"
-            disabled={nights === 0}
+            disabled={nights === 0 || isCheckingAvailability || (availability !== null && !availability.available)}
           >
             <CalendarDays data-icon="inline-start" className="size-4" />
-            Book Stay
+            {availability !== null && !availability.available ? "Unavailable" : "Book Stay"}
           </Button>
         </div>
       )}
