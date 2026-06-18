@@ -43,7 +43,7 @@ This project uses PostgreSQL with Drizzle ORM.
    npm run db:migrate
    ```
 
-5. Seed room inventory and the reviewer staff account:
+5. Seed room inventory, reviewer users, and sample reservations:
 
    ```bash
    npm run db:seed
@@ -55,6 +55,21 @@ This project uses PostgreSQL with Drizzle ORM.
    Email: staff@staybook.test
    Password: StayBook123!
    ```
+
+   Seeded guest credentials:
+
+   ```txt
+   Email: guest.alex@staybook.test
+   Password: StayBook123!
+
+   Email: guest.mina@staybook.test
+   Password: StayBook123!
+
+   Email: guest.sam@staybook.test
+   Password: StayBook123!
+   ```
+
+   The seed also creates active, upcoming, past, cancelled, overlapping, and same-day turnover reservation scenarios. Re-running the seed refreshes reservations for the seeded demo rooms and seeded guest accounts.
 
 Then, run the development server:
 
@@ -137,5 +152,5 @@ StayBook/
 - `npm run db:push`: Push schema changes to database for quick local experiments. Do not use this for normal setup because migrations include hand-written constraints.
 - `npm run db:generate`: Generate database client/types
 - `npm run db:migrate`: Run database migrations
-- `npm run db:seed`: Seed rooms, amenities, and the reviewer staff account
+- `npm run db:seed`: Seed rooms, amenities, reviewer accounts, and sample reservations
 - `npm run db:studio`: Open database studio UI

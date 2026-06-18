@@ -149,16 +149,16 @@ Verification snapshot:
 
 ### Seeder
 
-- [ ] Seed at least 10 active rooms. Current seed has 6.
+- [x] Seed at least 10 active rooms. Current seed has 6.
 - [x] Seed at least one staff account.
-- [ ] Seed multiple guest accounts.
-- [ ] Seed upcoming reservations.
-- [ ] Seed active reservations.
-- [ ] Seed past reservations.
-- [ ] Seed cancelled reservations.
-- [ ] Seed deterministic credentials for reviewers.
-- [ ] Seed predictable overlap edge cases to demonstrate availability behavior.
-- [ ] Add seed verification that confirms seeded users, rooms, and reservations exist.
+- [x] Seed multiple guest accounts.
+- [x] Seed upcoming reservations.
+- [x] Seed active reservations.
+- [x] Seed past reservations.
+- [x] Seed cancelled reservations.
+- [x] Seed deterministic credentials for reviewers.
+- [x] Seed predictable overlap edge cases to demonstrate availability behavior.
+- [x] Add seed verification that confirms seeded users, rooms, and reservations exist.
 
 ### Rate Limiting And Security Hardening
 
@@ -206,8 +206,8 @@ Verification snapshot:
 - [ ] Expand README with full reviewer setup: install, environment, migrate, seed, run.
 - [ ] Document required environment variables with safe sample values.
 - [ ] Document local database setup expectations.
-- [ ] Document seeded guest credentials.
-- [ ] Document seeded staff credentials.
+- [x] Document seeded guest credentials.
+- [x] Document seeded staff credentials.
 - [ ] Document the half-open date range rule and same-day turnover behavior.
 - [ ] Document the overlap exclusion constraint and why migrations are required instead of only `db:push`.
 
