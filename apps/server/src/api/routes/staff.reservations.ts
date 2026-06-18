@@ -21,7 +21,7 @@ type ReservationRow = {
   guestId: string;
   checkInDate: string;
   checkOutDate: string;
-  totalPrice: string;
+  totalPrice: number;
   status: ReservationStatus;
   cancelledAt: string | null;
   cancelledByUserId: string | null;
@@ -34,7 +34,7 @@ type StaffReservationListRow = ReservationRow & {
   roomName: string;
   roomType: string;
   roomMaxGuests: number;
-  roomNightlyPrice: string;
+  roomNightlyPrice: number;
   roomPrimaryPhotoUrl: string | null;
   guestName: string | null;
   guestEmail: string | null;

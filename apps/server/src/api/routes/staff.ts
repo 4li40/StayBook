@@ -31,7 +31,7 @@ type StaffRoomListRow = {
   type: string;
   description: string;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   active: boolean;
   primaryPhotoUrl: string | null;
   photos: PhotoSummary[];
@@ -58,14 +58,13 @@ const roomBodySchema = z
     type: z.string().trim().min(1).max(60),
     description: z.string().trim().min(1).max(2000),
     maxGuests: z.number().int().min(1).max(20),
-    nightlyPrice: z.number().positive().max(99_999),
+    nightlyPrice: z.number().int().positive().max(9_999_999),
     amenityIds: z.array(z.string().uuid()).max(50).default([]),
     photos: z.array(roomPhotoInputSchema).max(12).default([]),
   })
   .strict()
   .transform((room) => ({
     ...room,
-    nightlyPrice: room.nightlyPrice.toFixed(2),
     amenityIds: [...new Set(room.amenityIds)],
     photos: room.photos.map((photo, index) => ({
       ...photo,

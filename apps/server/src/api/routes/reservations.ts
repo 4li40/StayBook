@@ -15,32 +15,17 @@ import {
 import {
   ApiError,
   asyncHandler,
-  getDatabaseErrorCode,
   sendData,
 } from "../http";
+import { createBooking, type ReservationRow } from "../../services/booking";
 
 type ReservationStatus = "confirmed" | "cancelled";
-
-type ReservationRow = {
-  id: string;
-  roomId: string;
-  guestId: string;
-  checkInDate: string;
-  checkOutDate: string;
-  totalPrice: string;
-  status: ReservationStatus;
-  cancelledAt: string | null;
-  cancelledByUserId: string | null;
-  cancellationReason: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type ReservationListRow = ReservationRow & {
   roomName: string;
   roomType: string;
   roomMaxGuests: number;
-  roomNightlyPrice: string;
+  roomNightlyPrice: number;
   roomPrimaryPhotoUrl: string | null;
 };
 
@@ -82,84 +67,15 @@ reservationsRouter.post(
     const user = getAuthenticatedUser(req);
     const body = createReservationBodySchema.parse(req.body);
 
-    try {
-      const result = await db.execute<ReservationRow>(sql`
-        insert into reservations (
-          room_id,
-          guest_id,
-          check_in_date,
-          check_out_date,
-          total_price,
-          status
-        )
-        select
-          room.id,
-          ${user.id},
-          ${body.checkInDate}::date,
-          ${body.checkOutDate}::date,
-          room.nightly_price * (${body.checkOutDate}::date - ${body.checkInDate}::date),
-          'confirmed'::reservation_status
-        from rooms room
-        where room.id = ${body.roomId}::uuid
-          and room.active = true
-          and room.max_guests >= ${body.guestCount}
-        returning
-          id,
-          room_id as "roomId",
-          guest_id as "guestId",
-          check_in_date::text as "checkInDate",
-          check_out_date::text as "checkOutDate",
-          total_price as "totalPrice",
-          status,
-          cancelled_at::text as "cancelledAt",
-          cancelled_by_user_id as "cancelledByUserId",
-          cancellation_reason as "cancellationReason",
-          created_at::text as "createdAt",
-          updated_at::text as "updatedAt"
-      `);
+    const reservation = await createBooking({
+      roomId: body.roomId,
+      guestId: user.id,
+      checkInDate: body.checkInDate,
+      checkOutDate: body.checkOutDate,
+      guestCount: body.guestCount,
+    });
 
-      const reservation = result.rows[0];
-      if (reservation) {
-        sendData(res, { reservation }, 201);
-        return;
-      }
-    } catch (error) {
-      if (getDatabaseErrorCode(error) === "23P01") {
-        throw new ApiError(
-          409,
-          "CONFLICT",
-          "Room is no longer available for those dates.",
-        );
-      }
-
-      throw error;
-    }
-
-    const roomResult = await db.execute<{
-      id: string;
-      active: boolean;
-      maxGuests: number;
-    }>(sql`
-      select id, active, max_guests as "maxGuests"
-      from rooms
-      where id = ${body.roomId}::uuid
-      limit 1
-    `);
-
-    const room = roomResult.rows[0];
-    if (!room) {
-      throw new ApiError(404, "NOT_FOUND", "Room was not found.");
-    }
-
-    if (!room.active) {
-      throw new ApiError(409, "CONFLICT", "Room is not active.");
-    }
-
-    throw new ApiError(
-      400,
-      "BAD_REQUEST",
-      "Room cannot accommodate the requested guest count.",
-    );
+    sendData(res, { reservation }, 201);
   }),
 );
 

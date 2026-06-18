@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { differenceInNights, stayDateRangeSchema } from "../dates";
 import { ApiError, asyncHandler, sendData } from "../http";
+import { overlappingReservationExistsSql } from "../../services/booking";
 
 type AmenitySummary = {
   id: string;
@@ -25,7 +26,7 @@ type RoomListRow = {
   type: string;
   description: string;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   primaryPhotoUrl: string | null;
   amenities: AmenitySummary[];
   booked: boolean;
@@ -37,7 +38,7 @@ type RoomDetailRow = {
   type: string;
   description: string;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   photos: PhotoRow[];
   amenities: AmenitySummary[];
 };
@@ -46,7 +47,7 @@ type AvailabilityRow = {
   id: string;
   active: boolean;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   hasOverlappingReservation: boolean;
 };
 
@@ -111,14 +112,11 @@ roomsRouter.get(
     const query = roomsQuerySchema.parse(req.query);
     const hasDates = Boolean(query.checkInDate && query.checkOutDate);
     const bookedColumn = hasDates
-      ? sql`exists (
-          select 1
-          from reservations reservation
-          where reservation.room_id = room.id
-            and reservation.status = 'confirmed'
-            and daterange(reservation.check_in_date, reservation.check_out_date, '[)')
-              && daterange(${query.checkInDate}::date, ${query.checkOutDate}::date, '[)')
-        )`
+      ? overlappingReservationExistsSql(
+          sql`room.id`,
+          query.checkInDate!,
+          query.checkOutDate!,
+        )
       : sql`false`;
 
     const result = await db.execute<RoomListRow>(sql`
@@ -230,14 +228,11 @@ roomsRouter.get(
         room.active,
         room.max_guests as "maxGuests",
         room.nightly_price as "nightlyPrice",
-        exists (
-          select 1
-          from reservations reservation
-          where reservation.room_id = room.id
-            and reservation.status = 'confirmed'
-            and daterange(reservation.check_in_date, reservation.check_out_date, '[)')
-              && daterange(${query.checkInDate}::date, ${query.checkOutDate}::date, '[)')
-        ) as "hasOverlappingReservation"
+        ${overlappingReservationExistsSql(
+          sql`room.id`,
+          query.checkInDate,
+          query.checkOutDate,
+        )} as "hasOverlappingReservation"
       from rooms room
       where room.id = ${params.roomId}::uuid
       limit 1
@@ -257,7 +252,7 @@ roomsRouter.get(
       roomId: room.id,
       available,
       nights,
-      estimatedTotalPrice: (Number(room.nightlyPrice) * nights).toFixed(2),
+      estimatedTotalPrice: room.nightlyPrice * nights,
       reasons: {
         inactive: !room.active,
         insufficientCapacity: room.maxGuests < query.guests,

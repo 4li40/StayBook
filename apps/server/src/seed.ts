@@ -8,7 +8,7 @@ import {
   user,
 } from "@StayBook/db/schema";
 import { env } from "@StayBook/env/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const AMENITIES = [
   "Wi-Fi",
@@ -32,7 +32,7 @@ const ROOMS = [
     description:
       "Spacious suite with a king bed, panoramic city views, and a separate living area.",
     maxGuests: 2,
-    nightlyPrice: "299.99",
+    nightlyPrice: 29999,
   },
   {
     name: "Standard Double",
@@ -40,7 +40,7 @@ const ROOMS = [
     description:
       "Comfortable room with two double beds, perfect for friends or colleagues.",
     maxGuests: 4,
-    nightlyPrice: "179.99",
+    nightlyPrice: 17999,
   },
   {
     name: "Presidential Suite",
@@ -48,7 +48,7 @@ const ROOMS = [
     description:
       "Luxurious suite with premium furnishings, private terrace, and butler service.",
     maxGuests: 2,
-    nightlyPrice: "599.99",
+    nightlyPrice: 59999,
   },
   {
     name: "Family Room",
@@ -56,7 +56,7 @@ const ROOMS = [
     description:
       "Large room with a queen bed and bunk beds, designed for families with children.",
     maxGuests: 5,
-    nightlyPrice: "229.99",
+    nightlyPrice: 22999,
   },
   {
     name: "Economy Single",
@@ -64,7 +64,7 @@ const ROOMS = [
     description:
       "Cozy and affordable room with a single bed for the solo traveler.",
     maxGuests: 1,
-    nightlyPrice: "119.99",
+    nightlyPrice: 11999,
   },
   {
     name: "Ocean View Penthouse",
@@ -72,7 +72,7 @@ const ROOMS = [
     description:
       "Top-floor penthouse with floor-to-ceiling windows, ocean views, and a private hot tub.",
     maxGuests: 4,
-    nightlyPrice: "899.99",
+    nightlyPrice: 89999,
   },
 ];
 
@@ -201,7 +201,16 @@ async function seed() {
   const insertedRooms = await db
     .insert(rooms)
     .values(ROOMS)
-    .onConflictDoNothing()
+    .onConflictDoUpdate({
+      target: rooms.name,
+      set: {
+        type: sql`excluded.type`,
+        description: sql`excluded.description`,
+        maxGuests: sql`excluded.max_guests`,
+        nightlyPrice: sql`excluded.nightly_price`,
+        updatedAt: new Date(),
+      },
+    })
     .returning();
 
   const allRooms = await db.select().from(rooms);

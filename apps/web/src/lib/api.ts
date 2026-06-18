@@ -30,7 +30,7 @@ export type Room = {
   type: string;
   description: string;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   primaryPhotoUrl: string | null;
   amenities: Amenity[];
   booked: boolean;
@@ -63,7 +63,7 @@ export type RoomDetail = {
   type: string;
   description: string;
   maxGuests: number;
-  nightlyPrice: string;
+  nightlyPrice: number;
   photos: Photo[];
   amenities: Amenity[];
 };
@@ -111,7 +111,7 @@ export type Reservation = {
   guestId: string;
   checkInDate: string;
   checkOutDate: string;
-  totalPrice: string;
+  totalPrice: number;
   status: ReservationStatus;
   cancelledAt: string | null;
   cancelledByUserId: string | null;
@@ -123,7 +123,7 @@ export type Reservation = {
     name: string;
     type: string;
     maxGuests: number;
-    nightlyPrice: string;
+    nightlyPrice: number;
     primaryPhotoUrl: string | null;
   };
 };

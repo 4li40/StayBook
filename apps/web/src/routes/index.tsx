@@ -15,6 +15,7 @@ import { BedDouble, CalendarDays, Search, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiRequest, getErrorMessage, type Room } from "@/lib/api";
+import { formatCents } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -23,11 +24,6 @@ export const Route = createFileRoute("/")({
 type RoomsResponse = {
   rooms: Room[];
 };
-
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
-});
 
 function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -184,7 +180,7 @@ function HomeComponent() {
 
         {!isLoading
           ? rooms.map((room) => {
-              const total = Number(room.nightlyPrice) * nights;
+              const total = room.nightlyPrice * nights;
 
               return (
                 <Link
@@ -249,10 +245,10 @@ function HomeComponent() {
                       ) : (
                         <div className="min-w-0">
                           <p className="font-medium tabular-nums">
-                            {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-muted-foreground font-normal">/ night</span>
+                            {formatCents(room.nightlyPrice)} <span className="text-muted-foreground font-normal">/ night</span>
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums">
-                            {nights > 0 ? `${moneyFormatter.format(total)} total` : "Pick valid dates"}
+                            {nights > 0 ? `${formatCents(total)} total` : "Pick valid dates"}
                           </p>
                         </div>
                       )}

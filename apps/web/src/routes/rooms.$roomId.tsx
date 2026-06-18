@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { apiRequest, getErrorMessage, type RoomDetail } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
+import { formatCents } from "@/lib/format";
 
 export const Route = createFileRoute("/rooms/$roomId")({
   component: RoomDetailComponent,
@@ -30,11 +31,6 @@ function getNightCount(checkInDate: string, checkOutDate: string) {
   const nights = (checkOut.getTime() - checkIn.getTime()) / 86_400_000;
   return Number.isFinite(nights) && nights > 0 ? nights : 0;
 }
-
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
-});
 
 function RoomDetailComponent() {
   const { roomId } = Route.useParams();
@@ -186,7 +182,7 @@ function RoomDetailComponent() {
 
             <div className="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 shadow-sm">
               <p className="text-xl font-heading text-foreground tabular-nums">
-                {moneyFormatter.format(Number(room.nightlyPrice))} <span className="text-base text-muted-foreground font-sans font-normal">/ night</span>
+                {formatCents(room.nightlyPrice)} <span className="text-base text-muted-foreground font-sans font-normal">/ night</span>
               </p>
 
               <form
@@ -238,7 +234,7 @@ function RoomDetailComponent() {
 
                 {nights > 0 ? (
                   <p className="text-sm text-muted-foreground tabular-nums">
-                    {nights} night{nights !== 1 ? "s" : ""} · {moneyFormatter.format(Number(room.nightlyPrice) * nights)} total
+                    {nights} night{nights !== 1 ? "s" : ""} · {formatCents(room.nightlyPrice * nights)} total
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">Pick valid dates</p>

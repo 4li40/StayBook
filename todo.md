@@ -89,9 +89,9 @@ Verification snapshot:
 
 ## Partially Done / Needs Tightening
 
-- [ ] Change money storage to match the PRD: schema currently stores `numeric(10, 2)` dollar amounts, while the PRD asks for prices in cents.
-- [ ] Wrap booking creation in an explicit transaction. Current implementation uses one `insert ... select` plus the database constraint, but the PRD specifically asks for a transaction.
-- [ ] Centralize reservation overlap and booking business logic in domain services. It currently lives directly inside route handlers.
+- [x] Change money storage to match the PRD: schema currently stores `numeric(10, 2)` dollar amounts, while the PRD asks for prices in cents.
+- [x] Wrap booking creation in an explicit transaction. Current implementation uses one `insert ... select` plus the database constraint, but the PRD specifically asks for a transaction.
+- [x] Centralize reservation overlap and booking business logic in domain services. It currently lives directly inside route handlers.
 - [ ] Make room detail access respect guest availability expectations. `/api/rooms/:roomId` currently returns inactive rooms too.
 - [ ] Preserve selected search dates and guest count when moving from room search to room detail/booking.
 - [ ] Add a dedicated booking confirmation view or flow if the PRD's "booking confirmation" route is meant to be more than a toast.

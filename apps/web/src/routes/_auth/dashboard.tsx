@@ -19,6 +19,7 @@ import {
   type Reservation,
   type ReservationsResponse,
 } from "@/lib/api";
+import { formatCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: RouteComponent,
@@ -28,11 +29,6 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
   day: "numeric",
   year: "numeric",
-});
-
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
 });
 
 function formatDate(date: string) {
@@ -162,7 +158,7 @@ function RouteComponent() {
                   <div>
                     <p className="text-muted-foreground mb-1">Total</p>
                     <p className="font-medium tabular-nums">
-                      {moneyFormatter.format(Number(reservation.totalPrice))}
+                      {formatCents(reservation.totalPrice)}
                     </p>
                   </div>
                   <div>

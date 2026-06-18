@@ -50,6 +50,7 @@ import {
   type StaffRoomStatus,
   type StaffRoomsResponse,
 } from "@/lib/api";
+import { formatCents } from "@/lib/format";
 
 export const Route = createFileRoute("/_staff/staff")({
   component: RouteComponent,
@@ -83,18 +84,13 @@ const emptyRoomForm: RoomFormState = {
   photos: [],
 };
 
-const moneyFormatter = new Intl.NumberFormat(undefined, {
-  style: "currency",
-  currency: "USD",
-});
-
 function roomToForm(room: StaffRoom): RoomFormState {
   return {
     name: room.name,
     type: room.type,
     description: room.description,
     maxGuests: String(room.maxGuests),
-    nightlyPrice: String(Number(room.nightlyPrice)),
+    nightlyPrice: String(room.nightlyPrice / 100),
     amenityIds: room.amenities.map((amenity) => amenity.id),
     photos: room.photos.map((photo) => ({
       url: photo.url,
@@ -110,7 +106,7 @@ function toPayload(form: RoomFormState): StaffRoomInput {
     type: form.type.trim(),
     description: form.description.trim(),
     maxGuests: Number(form.maxGuests),
-    nightlyPrice: Number(form.nightlyPrice),
+    nightlyPrice: Math.round(Number(form.nightlyPrice.replace(",", ".")) * 100),
     amenityIds: form.amenityIds,
     photos: form.photos
       .map((photo) => ({
@@ -917,7 +913,7 @@ function RouteComponent() {
                           <CardTitle>{room.name}</CardTitle>
                           <CardDescription className="capitalize">
                             {room.type} · up to {room.maxGuests} guests ·{" "}
-                            {moneyFormatter.format(Number(room.nightlyPrice))} / night
+                            {formatCents(room.nightlyPrice)} / night
                           </CardDescription>
                         </div>
                       </div>
