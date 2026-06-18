@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   calendarDateSchema,
+  classifyReservationState,
   differenceInNights,
   isMoreThan24HoursBeforeCheckIn,
   isValidCalendarDate,
   stayDateRangeSchema,
+  todayUtcDate,
 } from "./dates";
 
 describe("isValidCalendarDate", () => {
@@ -88,5 +90,51 @@ describe("stayDateRangeSchema", () => {
       checkOutDate: "2024-01-01",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("todayUtcDate", () => {
+  it("returns a real YYYY-MM-DD calendar date", () => {
+    const today = todayUtcDate();
+    expect(/^\d{4}-\d{2}-\d{2}$/.test(today)).toBe(true);
+    expect(isValidCalendarDate(today)).toBe(true);
+  });
+});
+
+describe("classifyReservationState", () => {
+  it("returns cancelled for cancelled status regardless of dates", () => {
+    expect(
+      classifyReservationState("cancelled", "2024-01-01", "2024-01-05", "2024-01-03"),
+    ).toBe("cancelled");
+  });
+
+  it("returns upcoming when check-in is after today", () => {
+    expect(
+      classifyReservationState("confirmed", "2024-02-01", "2024-02-05", "2024-01-15"),
+    ).toBe("upcoming");
+  });
+
+  it("returns active when today is within the stay range", () => {
+    expect(
+      classifyReservationState("confirmed", "2024-01-01", "2024-01-05", "2024-01-03"),
+    ).toBe("active");
+  });
+
+  it("returns active when today is the check-in date", () => {
+    expect(
+      classifyReservationState("confirmed", "2024-01-01", "2024-01-05", "2024-01-01"),
+    ).toBe("active");
+  });
+
+  it("returns past when check-out is on today (half-open range)", () => {
+    expect(
+      classifyReservationState("confirmed", "2024-01-01", "2024-01-05", "2024-01-05"),
+    ).toBe("past");
+  });
+
+  it("returns past when check-out is before today", () => {
+    expect(
+      classifyReservationState("confirmed", "2024-01-01", "2024-01-05", "2024-01-06"),
+    ).toBe("past");
   });
 });

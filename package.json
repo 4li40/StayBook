@@ -27,6 +27,7 @@
   "devDependencies": {
     "@StayBook/config": "*",
     "@types/node": "^22.13.14",
+    "shadcn": "^4.11.0",
     "turbo": "^2.9.16",
     "typescript": "^6"
   },

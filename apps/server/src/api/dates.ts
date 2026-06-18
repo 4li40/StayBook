@@ -46,6 +46,41 @@ export function differenceInNights(checkInDate: string, checkOutDate: string) {
 }
 
 export function isMoreThan24HoursBeforeCheckIn(checkInDate: string) {
-  const checkIn = new Date(`${checkInDate}T00:00:00`);
-  return checkIn.getTime() - Date.now() > millisecondsPerDay;
+  const checkIn = Date.parse(`${checkInDate}T00:00:00.000Z`);
+  return checkIn - Date.now() > millisecondsPerDay;
+}
+
+export type ReservationDerivedState =
+  | "upcoming"
+  | "active"
+  | "past"
+  | "cancelled";
+
+export function todayUtcDate(): string {
+  return new Date().toISOString().split("T")[0]!;
+}
+
+export function classifyReservationState(
+  status: "confirmed" | "cancelled",
+  checkInDate: string,
+  checkOutDate: string,
+  today: string,
+): ReservationDerivedState {
+  if (status === "cancelled") {
+    return "cancelled";
+  }
+
+  const checkInMs = Date.parse(`${checkInDate}T00:00:00.000Z`);
+  const checkOutMs = Date.parse(`${checkOutDate}T00:00:00.000Z`);
+  const todayMs = Date.parse(`${today}T00:00:00.000Z`);
+
+  if (checkInMs > todayMs) {
+    return "upcoming";
+  }
+
+  if (checkOutMs > todayMs) {
+    return "active";
+  }
+
+  return "past";
 }

@@ -134,13 +134,13 @@ Verification snapshot:
 
 ### Staff Reservation Management
 
-- [ ] Staff API: list all reservations.
-- [ ] Staff API: filter reservations by date range.
-- [ ] Staff API: filter reservations by room.
-- [ ] Staff API: filter reservations by status or derived state.
-- [ ] Staff API: paginate reservation lists with metadata.
-- [ ] Staff API: manually cancel any reservation.
-- [ ] Staff API: preserve reservation records and cancellation metadata for manual cancellations.
+- [x] Staff API: list all reservations.
+- [x] Staff API: filter reservations by date range.
+- [x] Staff API: filter reservations by room.
+- [x] Staff API: filter reservations by status or derived state.
+- [x] Staff API: paginate reservation lists with metadata.
+- [x] Staff API: manually cancel any reservation.
+- [x] Staff API: preserve reservation records and cancellation metadata for manual cancellations.
 - [ ] Staff UI: reservation management page.
 - [ ] Staff UI: date range, room, and status filters.
 - [ ] Staff UI: pagination controls.

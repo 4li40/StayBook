@@ -10,6 +10,7 @@ import {
   getDatabaseErrorCode,
   sendData,
 } from "../http";
+import { staffReservationsRouter } from "./staff.reservations";
 
 type AmenitySummary = {
   id: string;
@@ -76,6 +77,7 @@ const roomBodySchema = z
 export const staffRouter = Router();
 
 staffRouter.use(requireSession, requireStaff);
+staffRouter.use("/reservations", staffReservationsRouter);
 
 function normalizeStaffRoom(room: StaffRoomListRow) {
   const photos = Array.isArray(room.photos)
