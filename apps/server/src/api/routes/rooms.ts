@@ -252,7 +252,7 @@ roomsRouter.get(
       roomId: room.id,
       available,
       nights,
-      estimatedTotalPrice: room.nightlyPrice * nights,
+      estimatedTotalPrice: (room.nightlyPrice * nights).toFixed(2),
       reasons: {
         inactive: !room.active,
         insufficientCapacity: room.maxGuests < query.guests,
