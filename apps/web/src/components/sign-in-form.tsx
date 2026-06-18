@@ -11,6 +11,11 @@ import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
 
+export const signInFormSchema = z.object({
+  email: z.email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
   const navigate = useNavigate({
     from: "/",
@@ -44,10 +49,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       );
     },
     validators: {
-      onSubmit: z.object({
-        email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
-      }),
+      onSubmit: signInFormSchema,
     },
   });
 
@@ -70,6 +72,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       </div>
 
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();

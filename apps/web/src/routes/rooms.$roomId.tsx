@@ -316,6 +316,7 @@ function RoomDetailComponent() {
               </header>
 
               <form
+                noValidate
                 className="flex flex-col gap-5"
                 onSubmit={(e) => {
                   e.preventDefault();

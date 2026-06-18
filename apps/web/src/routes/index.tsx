@@ -138,6 +138,7 @@ function HomeComponent() {
         </div>
 
         <form
+          noValidate
           className="w-full max-w-4xl flex flex-col md:flex-row items-stretch gap-2 md:gap-0 rounded-2xl md:rounded-full border border-ghost-border bg-card p-2 md:pl-6 md:pr-2 shadow-xs transition-all hover:shadow-[0_8px_30px_rgba(26,43,60,0.04)] focus-within:border-gold focus-within:ring-1 focus-within:ring-gold/30"
           onSubmit={(e) => {
             e.preventDefault();

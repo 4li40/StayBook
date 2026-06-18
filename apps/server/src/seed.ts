@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+
 import { auth } from "@StayBook/auth";
 import { db } from "@StayBook/db";
 import {
@@ -11,14 +13,14 @@ import {
 import { env } from "@StayBook/env/server";
 import { eq, inArray, or, sql } from "drizzle-orm";
 
-type SeedUser = {
+export type SeedUser = {
   name: string;
   email: string;
   password: string;
   role: "guest" | "staff";
 };
 
-type SeedReservation = {
+export type SeedReservation = {
   label: string;
   roomName: string;
   guestEmail: string;
@@ -29,7 +31,7 @@ type SeedReservation = {
   cancelledByEmail?: string;
 };
 
-const AMENITIES = [
+export const AMENITIES = [
   "Wi-Fi",
   "Air Conditioning",
   "Heating",
@@ -44,7 +46,7 @@ const AMENITIES = [
   "Shower",
 ];
 
-const ROOMS = [
+export const ROOMS = [
   {
     name: "Deluxe King Suite",
     type: "suite",
@@ -135,7 +137,7 @@ const ROOMS = [
   },
 ];
 
-const ROOM_PHOTOS: Record<string, string[]> = {
+export const ROOM_PHOTOS: Record<string, string[]> = {
   "Deluxe King Suite": [
     "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
     "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800",
@@ -178,7 +180,7 @@ const ROOM_PHOTOS: Record<string, string[]> = {
   ],
 };
 
-const ROOM_AMENITY_MAP: Record<string, string[]> = {
+export const ROOM_AMENITY_MAP: Record<string, string[]> = {
   "Deluxe King Suite": [
     "Wi-Fi",
     "Air Conditioning",
@@ -235,14 +237,14 @@ const ROOM_AMENITY_MAP: Record<string, string[]> = {
   "Overlap Demo Queen": ["Wi-Fi", "Heating", "TV", "Coffee Maker"],
 };
 
-const STAFF_USER: SeedUser = {
+export const STAFF_USER: SeedUser = {
   name: "StayBook Staff",
   email: "staff@staybook.test",
   password: "StayBook123!",
   role: "staff",
 };
 
-const GUEST_USERS: SeedUser[] = [
+export const GUEST_USERS: SeedUser[] = [
   {
     name: "Alex Guest",
     email: "guest.alex@staybook.test",
@@ -263,7 +265,7 @@ const GUEST_USERS: SeedUser[] = [
   },
 ];
 
-const SEED_RESERVATIONS: SeedReservation[] = [
+export const SEED_RESERVATIONS: SeedReservation[] = [
   {
     label: "active stay",
     roomName: "Deluxe King Suite",
@@ -335,20 +337,20 @@ const SEED_RESERVATIONS: SeedReservation[] = [
   },
 ];
 
-function dateFromTodayOffset(offsetDays: number) {
+export function dateFromTodayOffset(offsetDays: number) {
   const date = new Date();
   date.setUTCHours(0, 0, 0, 0);
   date.setUTCDate(date.getUTCDate() + offsetDays);
   return date.toISOString().slice(0, 10);
 }
 
-function differenceInNights(checkInDate: string, checkOutDate: string) {
+export function differenceInNights(checkInDate: string, checkOutDate: string) {
   const checkIn = Date.parse(`${checkInDate}T00:00:00.000Z`);
   const checkOut = Date.parse(`${checkOutDate}T00:00:00.000Z`);
   return Math.round((checkOut - checkIn) / (24 * 60 * 60 * 1000));
 }
 
-function getRequiredMapValue<K, V>(map: Map<K, V>, key: K, label: string): V {
+export function getRequiredMapValue<K, V>(map: Map<K, V>, key: K, label: string): V {
   const value = map.get(key);
 
   if (!value) {
@@ -394,7 +396,7 @@ async function seedUsers() {
   }
 }
 
-async function seed() {
+export async function seed() {
   console.log("Seeding deterministic users...");
   await seedUsers();
 
@@ -592,7 +594,9 @@ async function seed() {
   }
 }
 
-seed().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  seed().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}
