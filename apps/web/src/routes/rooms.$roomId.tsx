@@ -233,24 +233,24 @@ function RoomDetailComponent() {
                   alt={room.photos[activePhotoIndex].altText ?? room.name}
                   className="h-full w-full object-cover transition-all duration-700"
                 />
-                <span className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] backdrop-blur-sm ${
+                <span className={`absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] shadow-md backdrop-blur-sm ${
                   availability?.available
-                    ? "bg-sage-container/10 text-on-sage-container border border-sage-container/20"
-                    : "bg-destructive/10 text-destructive border border-destructive/25"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-destructive text-white"
                 }`}>
                   {isCheckingAvailability ? (
                     <>
-                      <span className="size-1.5 rounded-full bg-current animate-pulse" />
+                      <span className="size-1.5 rounded-full bg-white animate-pulse" />
                       Checking…
                     </>
                   ) : availability?.available ? (
                     <>
-                      <Sparkles aria-hidden="true" className="size-3" />
+                      <Sparkles aria-hidden="true" className="size-3.5" />
                       Available
                     </>
                   ) : (
                     <>
-                      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+                      <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />
                       Not Available
                     </>
                   )}
@@ -354,12 +354,12 @@ function RoomDetailComponent() {
                     <span className="text-xs text-muted-foreground/80 font-sans font-normal ml-1">/ night</span>
                   </p>
                 </div>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] ${
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] shadow-sm ${
                   availability?.available
-                    ? "bg-sage-container/10 text-on-sage-container border border-sage-container/20"
-                    : "bg-destructive/10 text-destructive border border-destructive/25"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-destructive text-white"
                 }`}>
-                  <span aria-hidden="true" className={`size-1.5 rounded-full ${availability?.available ? "bg-on-sage-container" : "bg-destructive"}`} />
+                  <span aria-hidden="true" className={`size-1.5 rounded-full bg-white`} />
                   {availability?.available ? "Available" : "Unavailable"}
                 </span>
               </header>

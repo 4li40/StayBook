@@ -146,7 +146,7 @@ roomsRouter.get(
       where room.active = true
         and room.max_guests >= ${query.guests}
       group by room.id, primary_photo.url
-      order by room.nightly_price asc, room.name asc
+      order by ${bookedColumn} asc, room.nightly_price asc, room.name asc
     `);
 
     sendData(res, {

@@ -302,7 +302,7 @@ function HomeComponent() {
                         </div>
                       )}
                       {room.booked ? (
-                        <span aria-label="Booked" className="absolute top-3 right-3 rounded-full bg-destructive/10 text-destructive border border-destructive/25 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider">
+                        <span aria-label="Booked" className="absolute top-3 right-3 rounded-full bg-destructive text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-md">
                           Booked
                         </span>
                       ) : null}
