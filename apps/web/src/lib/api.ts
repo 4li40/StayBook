@@ -155,6 +155,15 @@ export type AvailabilityResponse = {
   };
 };
 
+export type BookedDateRange = {
+  checkInDate: string;
+  checkOutDate: string;
+};
+
+export type BookedDatesResponse = {
+  bookedDates: BookedDateRange[];
+};
+
 export type StaffReservation = Reservation & {
   state: ReservationDerivedState;
   guest: {

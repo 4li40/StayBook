@@ -13,6 +13,7 @@ import { apiRequest, ApiClientError, getErrorMessage, type AvailabilityResponse,
 import { authClient } from "@/lib/auth-client";
 import { collectFieldErrors } from "@/lib/forms";
 import { formatCents } from "@/lib/format";
+import { RoomCalendar } from "@/components/room-calendar";
 
 export const Route = createFileRoute("/rooms/$roomId")({
   component: RoomDetailComponent,
@@ -340,6 +341,10 @@ function RoomDetailComponent() {
                   </div>
                 </section>
               ) : null}
+
+              <section className="flex flex-col gap-5 border-t border-border/40 pt-10 md:hidden">
+                <RoomCalendar roomId={roomId} />
+              </section>
             </div>
 
             {/* Desktop Booking Card (Sticky) */}
@@ -494,6 +499,10 @@ function RoomDetailComponent() {
                   )}
                 </form.Subscribe>
               </form>
+
+              <div className="border-t border-border/40 pt-5">
+                <RoomCalendar roomId={roomId} />
+              </div>
             </aside>
           </div>
         </div>

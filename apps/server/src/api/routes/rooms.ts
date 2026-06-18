@@ -104,6 +104,23 @@ const availabilityQuerySchema = stayDateRangeSchema.extend({
   guests: z.coerce.number().int().min(1).max(20).default(1),
 });
 
+const bookedDatesQuerySchema = z
+  .object({
+    month: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, "Use YYYY-MM format.")
+      .refine((value) => {
+        const month = Number(value.slice(5, 7));
+        return month >= 1 && month <= 12;
+      }, "Month must be between 01 and 12."),
+  })
+  .strict();
+
+type BookedDateRow = {
+  checkInDate: string;
+  checkOutDate: string;
+};
+
 export const roomsRouter = Router();
 
 roomsRouter.get(
@@ -259,6 +276,44 @@ roomsRouter.get(
         insufficientCapacity: room.maxGuests < query.guests,
         overlappingReservation: room.hasOverlappingReservation,
       },
+    });
+  }),
+);
+
+roomsRouter.get(
+  "/:roomId/booked-dates",
+  asyncHandler(async (req, res) => {
+    const params = roomParamsSchema.parse(req.params);
+    const query = bookedDatesQuerySchema.parse(req.query);
+
+    const [yearStr, monthStr] = query.month.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+    const room = await db.execute<{ id: string }>(sql`
+      select id from rooms where id = ${params.roomId}::uuid and active = true limit 1
+    `);
+    if (room.rows.length === 0) {
+      throw new ApiError(404, "NOT_FOUND", "Room was not found.");
+    }
+
+    const result = await db.execute<BookedDateRow>(sql`
+      select
+        check_in_date::text as "checkInDate",
+        check_out_date::text as "checkOutDate"
+      from reservations
+      where room_id = ${params.roomId}::uuid
+        and status = 'confirmed'
+        and daterange(check_in_date, check_out_date, '[)')
+          && daterange(${monthStart}::date, (${monthEnd}::date + 1)::date, '[)')
+      order by check_in_date asc
+    `);
+
+    sendData(res, {
+      bookedDates: result.rows,
     });
   }),
 );
