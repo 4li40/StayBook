@@ -250,6 +250,15 @@ const statusOptions: Array<{ value: StaffRoomStatus; label: string }> = [
   { value: "inactive", label: "Inactive" },
 ];
 
+const roomTypeOptions: Array<{ value: string; label: string }> = [
+  { value: "standard", label: "Standard" },
+  { value: "suite", label: "Suite" },
+  { value: "studio", label: "Studio" },
+  { value: "loft", label: "Loft" },
+  { value: "family", label: "Family" },
+  { value: "penthouse", label: "Penthouse" },
+];
+
 function toRoomFilters(form: RoomFilterForm): StaffRoomFilters {
   const status = form.status as StaffRoomFilters["status"];
   return {
@@ -394,18 +403,35 @@ function RoomForm({ editingRoom, amenities, onClose, onSaved }: RoomFormProps) {
                 {(field) => {
                   const serverError = serverFieldErrors.type;
                   const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                  const selectedOption = roomTypeOptions.find((option) => option.value === field.state.value);
+                  const typeOptions = selectedOption
+                    ? roomTypeOptions
+                    : roomTypeOptions.length > 0 && field.state.value
+                      ? [{ value: field.state.value, label: field.state.value }, ...roomTypeOptions]
+                      : roomTypeOptions;
                   return (
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="room-type">Type</Label>
-                      <Input
-                        id="room-type"
-                        name={field.name}
+                      <Select
                         value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => field.handleChange(event.target.value)}
-                        aria-invalid={hasError}
-                        placeholder="suite"
-                      />
+                        onValueChange={(value) => field.handleChange(String(value ?? ""))}
+                      >
+                        <SelectTrigger
+                          id="room-type"
+                          className="w-full"
+                          aria-invalid={hasError}
+                        >
+                          <SelectValue placeholder="Select a room type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Select a room type</SelectItem>
+                          {typeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {field.state.meta.errors.map((error) => (
                         <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
                           {error ? fieldErrorMessage(error) : undefined}
