@@ -51,11 +51,34 @@ type AvailabilityRow = {
   hasOverlappingReservation: boolean;
 };
 
+function parseCommaSeparatedUUIDs(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseCommaSeparatedStrings(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 const roomsQuerySchema = z
   .object({
     checkInDate: z.string().optional(),
     checkOutDate: z.string().optional(),
     guests: z.coerce.number().int().min(1).max(20).default(1),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(9),
+    priceMin: z.coerce.number().int().min(0).optional(),
+    priceMax: z.coerce.number().int().min(0).optional(),
+    types: z.string().optional(),
+    amenityIds: z.string().optional(),
+    onlyAvailable: z.coerce.boolean().default(false),
   })
   .superRefine((value, ctx) => {
     if (!value.checkInDate && !value.checkOutDate) {
@@ -123,6 +146,13 @@ type BookedDateRow = {
 
 export const roomsRouter = Router();
 
+type RoomFilterOptionsRow = {
+  types: string[];
+  amenities: { id: string; name: string }[];
+  minPrice: number;
+  maxPrice: number;
+};
+
 roomsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
@@ -135,6 +165,52 @@ roomsRouter.get(
           query.checkOutDate!,
         )
       : sql`false`;
+
+    const selectedTypes = parseCommaSeparatedStrings(query.types);
+    const selectedAmenityIds = parseCommaSeparatedUUIDs(query.amenityIds);
+    const offset = (query.page - 1) * query.pageSize;
+
+    const typeCondition =
+      selectedTypes.length > 0
+        ? sql`and room.type in (${sql.join(selectedTypes.map((type) => sql`${type}`), sql`, `)})`
+        : sql``;
+
+    const priceMinCondition =
+      query.priceMin != null
+        ? sql`and room.nightly_price >= ${query.priceMin}`
+        : sql``;
+
+    const priceMaxCondition =
+      query.priceMax != null
+        ? sql`and room.nightly_price <= ${query.priceMax}`
+        : sql``;
+
+    const amenityCondition =
+      selectedAmenityIds.length > 0
+        ? sql`and (
+          select count(distinct amenity.id)
+          from room_amenities room_amenity
+          join amenities amenity on amenity.id = room_amenity.amenity_id
+          where room_amenity.room_id = room.id
+            and amenity.id in (${sql.join(selectedAmenityIds.map((id) => sql`${id}::uuid`), sql`, `)})
+        ) = ${selectedAmenityIds.length}`
+        : sql``;
+
+    const availabilityCondition = query.onlyAvailable
+      ? sql`and not ${bookedColumn}`
+      : sql``;
+
+    const countResult = await db.execute<{ total: string }>(sql`
+      select count(*)::text as total
+      from rooms room
+      where room.active = true
+        and room.max_guests >= ${query.guests}
+        ${typeCondition}
+        ${priceMinCondition}
+        ${priceMaxCondition}
+        ${amenityCondition}
+        ${availabilityCondition}
+    `);
 
     const result = await db.execute<RoomListRow>(sql`
       select
@@ -162,16 +238,66 @@ roomsRouter.get(
         on amenity.id = room_amenity.amenity_id
       where room.active = true
         and room.max_guests >= ${query.guests}
+        ${typeCondition}
+        ${priceMinCondition}
+        ${priceMaxCondition}
+        ${amenityCondition}
+        ${availabilityCondition}
       group by room.id, primary_photo.url
       order by ${bookedColumn} asc, room.nightly_price asc, room.name asc
+      limit ${query.pageSize}
+      offset ${offset}
     `);
 
+    const optionsResult = await db.execute<RoomFilterOptionsRow>(sql`
+      select
+        coalesce(min(room.nightly_price), 0) as "minPrice",
+        coalesce(max(room.nightly_price), 0) as "maxPrice",
+        coalesce(
+          json_agg(distinct room.type) filter (where room.type is not null),
+          '[]'::json
+        ) as types,
+        coalesce(
+          json_agg(
+            distinct jsonb_build_object('id', amenity.id, 'name', amenity.name)
+          ) filter (where amenity.id is not null),
+          '[]'::json
+        ) as amenities
+      from rooms room
+      left join room_amenities room_amenity
+        on room_amenity.room_id = room.id
+      left join amenities amenity
+        on amenity.id = room_amenity.amenity_id
+      where room.active = true
+        and room.max_guests >= ${query.guests}
+    `);
+
+    const total = Number(countResult.rows[0]?.total ?? 0);
+    const optionsRow = optionsResult.rows[0];
+    const rooms = result.rows.map((room) => ({
+      ...room,
+      booked: Boolean(room.booked),
+      amenities: Array.isArray(room.amenities) ? room.amenities : [],
+    }));
+
     sendData(res, {
-      rooms: result.rows.map((room) => ({
-        ...room,
-        booked: Boolean(room.booked),
-        amenities: Array.isArray(room.amenities) ? room.amenities : [],
-      })),
+      rooms,
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total,
+        pageCount: Math.ceil(total / query.pageSize),
+      },
+      options: {
+        types: Array.isArray(optionsRow?.types) ? optionsRow.types : [],
+        amenities: Array.isArray(optionsRow?.amenities)
+          ? optionsRow.amenities
+          : [],
+        priceBounds: {
+          min: optionsRow?.minPrice ?? 0,
+          max: optionsRow?.maxPrice ?? 0,
+        },
+      },
     });
   }),
 );

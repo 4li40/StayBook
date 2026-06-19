@@ -69,6 +69,16 @@ function roomListRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function filterOptionsRow(overrides: Record<string, unknown> = {}) {
+  return {
+    types: ["suite"],
+    amenities: [{ id: AMENITY_ID, name: "Wi-Fi" }],
+    minPrice: 29999,
+    maxPrice: 29999,
+    ...overrides,
+  };
+}
+
 function availabilityRow(overrides: Record<string, unknown> = {}) {
   return {
     id: ACTIVE_ROOM_ID,
@@ -84,9 +94,16 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+function mockListResponses(rooms: Record<string, unknown>[]) {
+  mockedExecute
+    .mockResolvedValueOnce(mockResult([{ total: String(rooms.length) }]))
+    .mockResolvedValueOnce(mockResult(rooms))
+    .mockResolvedValueOnce(mockResult([filterOptionsRow()]));
+}
+
 describe("GET /api/rooms", () => {
   it("returns available active rooms for a valid date and guest search", async () => {
-    mockedExecute.mockResolvedValueOnce(mockResult([roomListRow()]));
+    mockListResponses([roomListRow()]);
 
     const res = await request(app).get(
       "/api/rooms?checkInDate=2027-01-10&checkOutDate=2027-01-12&guests=2",
@@ -100,16 +117,27 @@ describe("GET /api/rooms", () => {
         maxGuests: 2,
       }),
     ]);
+    expect(res.body.data.pagination).toMatchObject({
+      page: 1,
+      pageSize: 9,
+      total: 1,
+      pageCount: 1,
+    });
+    expect(res.body.data.options).toMatchObject({
+      types: expect.any(Array),
+      amenities: expect.any(Array),
+      priceBounds: expect.any(Object),
+    });
   });
 
   it("marks overlapping confirmed reservations as booked in date-based searches", async () => {
-    mockedExecute.mockResolvedValueOnce(mockResult([roomListRow()]));
+    mockListResponses([roomListRow()]);
 
     await request(app).get(
       "/api/rooms?checkInDate=2027-01-10&checkOutDate=2027-01-12&guests=2",
     );
 
-    const sqlText = normalizeSql(mockedExecute.mock.calls[0]?.[0]);
+    const sqlText = normalizeSql(mockedExecute.mock.calls[1]?.[0]);
     expect(sqlText).toContain("room.active = true");
     expect(sqlText).toContain("room.max_guests >=");
     expect(sqlText).toContain("exists");
@@ -119,13 +147,31 @@ describe("GET /api/rooms", () => {
   });
 
   it("does not add an overlap filter when dates are omitted", async () => {
-    mockedExecute.mockResolvedValueOnce(mockResult([roomListRow()]));
+    mockListResponses([roomListRow()]);
 
     await request(app).get("/api/rooms?guests=1");
 
-    const sqlText = normalizeSql(mockedExecute.mock.calls[0]?.[0]);
+    const sqlText = normalizeSql(mockedExecute.mock.calls[1]?.[0]);
     expect(sqlText).toContain("false as booked");
     expect(sqlText).not.toContain("and not exists");
+  });
+
+  it("paginates results using page and pageSize", async () => {
+    mockListResponses([roomListRow()]);
+
+    const res = await request(app).get(
+      "/api/rooms?guests=1&page=2&pageSize=5",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.pagination).toMatchObject({
+      page: 2,
+      pageSize: 5,
+      total: 1,
+      pageCount: 1,
+    });
+    expect(normalizeSql(mockedExecute.mock.calls[1]?.[0])).toContain("limit");
+    expect(normalizeSql(mockedExecute.mock.calls[1]?.[0])).toContain("offset");
   });
 
   it("rejects malformed or impossible search dates", async () => {

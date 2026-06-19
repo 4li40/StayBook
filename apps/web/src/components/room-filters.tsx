@@ -6,7 +6,7 @@ import { useMemo } from "react";
 
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Room } from "@/lib/api";
+import type { RoomFilterOptions } from "@/lib/api";
 
 export type RoomFiltersState = {
   priceMin: number | null;
@@ -24,35 +24,6 @@ export const defaultRoomFilters: RoomFiltersState = {
   onlyAvailable: false,
 };
 
-export function filterRooms(
-  rooms: Room[],
-  filters: RoomFiltersState,
-): Room[] {
-  if (countActiveFilters(filters) === 0) return rooms;
-
-  return rooms.filter((room) => {
-    if (filters.priceMin != null && room.nightlyPrice < filters.priceMin) {
-      return false;
-    }
-    if (filters.priceMax != null && room.nightlyPrice > filters.priceMax) {
-      return false;
-    }
-    if (filters.types.length > 0 && !filters.types.includes(room.type)) {
-      return false;
-    }
-    if (filters.amenityIds.length > 0) {
-      const roomAmenityIds = room.amenities.map((a) => a.id);
-      if (!filters.amenityIds.every((id) => roomAmenityIds.includes(id))) {
-        return false;
-      }
-    }
-    if (filters.onlyAvailable && room.booked) {
-      return false;
-    }
-    return true;
-  });
-}
-
 export function countActiveFilters(filters: RoomFiltersState): number {
   let count = 0;
   if (filters.priceMin != null) count += 1;
@@ -64,7 +35,7 @@ export function countActiveFilters(filters: RoomFiltersState): number {
 }
 
 type RoomFiltersProps = {
-  rooms: Room[];
+  options: RoomFilterOptions;
   filters: RoomFiltersState;
   onChange: (next: RoomFiltersState) => void;
   resultCount: number;
@@ -72,38 +43,22 @@ type RoomFiltersProps = {
 };
 
 export default function RoomFilters({
-  rooms,
+  options,
   filters,
   onChange,
   resultCount,
   totalCount,
 }: RoomFiltersProps) {
-  const { types, amenities, priceBounds } = useMemo(() => {
-    const typeSet = new Set<string>();
-    const amenityMap = new Map<string, string>();
-    let min = Infinity;
-    let max = 0;
-
-    for (const room of rooms) {
-      typeSet.add(room.type);
-      for (const amenity of room.amenities) {
-        amenityMap.set(amenity.id, amenity.name);
-      }
-      if (room.nightlyPrice < min) min = room.nightlyPrice;
-      if (room.nightlyPrice > max) max = room.nightlyPrice;
-    }
-
-    return {
-      types: Array.from(typeSet).sort((a, b) => a.localeCompare(b)),
-      amenities: Array.from(amenityMap.entries())
-        .map(([id, name]) => ({ id, name }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-      priceBounds: {
-        min: Number.isFinite(min) ? min : 0,
-        max: max || 0,
-      },
-    };
-  }, [rooms]);
+  const types = useMemo(
+    () => [...options.types].sort((a, b) => a.localeCompare(b)),
+    [options.types],
+  );
+  const amenities = useMemo(
+    () =>
+      [...options.amenities].sort((a, b) => a.name.localeCompare(b.name)),
+    [options.amenities],
+  );
+  const priceBounds = options.priceBounds;
 
   const activeCount = countActiveFilters(filters);
   const hasFilters = activeCount > 0;

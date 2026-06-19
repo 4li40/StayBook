@@ -36,6 +36,26 @@ export type Room = {
   booked: boolean;
 };
 
+export type RoomFilterOptions = {
+  types: string[];
+  amenities: Amenity[];
+  priceBounds: {
+    min: number;
+    max: number;
+  };
+};
+
+export type RoomsResponse = {
+  rooms: Room[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    pageCount: number;
+  };
+  options: RoomFilterOptions;
+};
+
 export type StaffRoom = Room & {
   active: boolean;
   photos: Photo[];

@@ -11,13 +11,11 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { getErrorMessage } from "@/lib/api";
-import { getDefaultRoomsSearch } from "@/lib/dates";
-import { roomsQueryOptions, type RoomsSearch } from "@/lib/queries";
+import { getDefaultRoomsListParams, roomsQueryOptions, type RoomsListParams } from "@/lib/queries";
 import RoomCard from "@/components/room-card";
 import RoomFilters, {
   countActiveFilters,
   defaultRoomFilters,
-  filterRooms,
   type RoomFiltersState,
 } from "@/components/room-filters";
 import RoomsSearchForm from "@/components/rooms-search-form";
@@ -27,14 +25,23 @@ type RoomsRouteSearch = {
   checkInDate?: string;
   checkOutDate?: string;
   guests?: string;
+  page?: number;
 };
 
-function effectiveSearch(search: RoomsRouteSearch): RoomsSearch {
-  const defaults = getDefaultRoomsSearch();
+function parsePage(value: unknown): number {
+  const parsed = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+function effectiveSearch(search: RoomsRouteSearch, filters: RoomFiltersState): RoomsListParams {
+  const defaults = getDefaultRoomsListParams();
   return {
     checkInDate: search.checkInDate ?? defaults.checkInDate,
     checkOutDate: search.checkOutDate ?? defaults.checkOutDate,
     guests: search.guests ?? defaults.guests,
+    page: parsePage(search.page),
+    pageSize: defaults.pageSize,
+    filters,
   };
 }
 
@@ -43,72 +50,77 @@ export const Route = createFileRoute("/rooms/")({
     checkInDate: typeof search.checkInDate === "string" ? search.checkInDate : undefined,
     checkOutDate: typeof search.checkOutDate === "string" ? search.checkOutDate : undefined,
     guests: typeof search.guests === "string" ? search.guests : undefined,
+    page: parsePage(search.page),
   }),
   loaderDeps: ({ search }) => ({
     checkInDate: search.checkInDate,
     checkOutDate: search.checkOutDate,
     guests: search.guests,
+    page: search.page,
   }),
   loader: ({ deps, context: { queryClient } }) =>
     queryClient.ensureQueryData({
-      ...roomsQueryOptions(effectiveSearch(deps)),
+      ...roomsQueryOptions(effectiveSearch(deps, defaultRoomFilters)),
       revalidateIfStale: true,
     }),
   component: RoomsComponent,
 });
 
-const PAGE_SIZE = 9;
-
 function RoomsComponent() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const effective = useMemo(() => effectiveSearch(search), [search]);
   const [filters, setFilters] = useState<RoomFiltersState>(defaultRoomFilters);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [page, setPage] = useState(1);
+
+  const effective = useMemo(() => effectiveSearch(search, filters), [search, filters]);
 
   const { data, error, isPending, isFetching } = useQuery(
     roomsQueryOptions(effective),
   );
-  const allRooms = data?.rooms ?? [];
-  const filteredRooms = useMemo(
-    () => filterRooms(allRooms, filters),
-    [allRooms, filters],
-  );
-  const pageCount = Math.ceil(filteredRooms.length / PAGE_SIZE);
-  const safePage = Math.min(page, Math.max(pageCount, 1));
-  const paginatedRooms = useMemo(
-    () => filteredRooms.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filteredRooms, safePage],
-  );
+  const rooms = data?.rooms ?? [];
+  const pagination = data?.pagination;
+  const options = data?.options;
   const errorMessage = error ? getErrorMessage(error) : null;
   const activeFilterCount = countActiveFilters(filters);
-  const hasRooms = !isPending && allRooms.length > 0;
+  const hasRooms = !isPending && rooms.length > 0;
+
+  function navigateToSearch(nextSearch: Partial<RoomsRouteSearch>) {
+    void navigate({
+      to: "/rooms",
+      search: {
+        checkInDate: effective.checkInDate,
+        checkOutDate: effective.checkOutDate,
+        guests: effective.guests,
+        page: effective.page,
+        ...nextSearch,
+      },
+    });
+  }
 
   function resetFiltersOnSearchChange() {
     if (activeFilterCount > 0) {
       setFilters(defaultRoomFilters);
     }
-    setPage(1);
+    navigateToSearch({ page: 1 });
   }
 
   function handleFiltersChange(next: RoomFiltersState) {
     setFilters(next);
-    setPage(1);
+    navigateToSearch({ page: 1 });
   }
 
   function handlePageChange(nextPage: number) {
-    setPage(nextPage);
+    navigateToSearch({ page: nextPage });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const filtersPanel = hasRooms ? (
+  const filtersPanel = hasRooms && options ? (
     <RoomFilters
-      rooms={allRooms}
+      options={options}
       filters={filters}
       onChange={handleFiltersChange}
-      resultCount={filteredRooms.length}
-      totalCount={allRooms.length}
+      resultCount={pagination?.total ?? rooms.length}
+      totalCount={pagination?.total ?? rooms.length}
     />
   ) : null;
 
@@ -134,6 +146,7 @@ function RoomsComponent() {
                 checkInDate: value.checkInDate,
                 checkOutDate: value.checkOutDate,
                 guests: value.guests,
+                page: 1,
               },
             });
           }}
@@ -158,8 +171,7 @@ function RoomsComponent() {
           {hasRooms ? (
             <div className="flex items-center justify-between gap-3 lg:hidden">
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground tabular-nums">{filteredRooms.length}</span> of{" "}
-                <span className="font-semibold text-foreground tabular-nums">{allRooms.length}</span> rooms
+                <span className="font-semibold text-foreground tabular-nums">{pagination?.total ?? rooms.length}</span> rooms
               </p>
               <Button
                 type="button"
@@ -219,20 +231,14 @@ function RoomsComponent() {
                 ))
               : null}
 
-            {!isPending && allRooms.length === 0 ? (
+            {!isPending && rooms.length === 0 ? (
               <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
                 No rooms match this search. Try fewer guests or a different date range.
               </div>
             ) : null}
 
-            {!isPending && allRooms.length > 0 && filteredRooms.length === 0 ? (
-              <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
-                No rooms match your filters. Try adjusting or clearing them.
-              </div>
-            ) : null}
-
             {!isPending
-              ? paginatedRooms.map((room) => (
+              ? rooms.map((room) => (
                   <RoomCard
                     key={room.id}
                     room={room}
@@ -242,12 +248,12 @@ function RoomsComponent() {
               : null}
           </section>
 
-          {!isPending && pageCount > 1 ? (
+          {!isPending && pagination && pagination.pageCount > 1 ? (
             <PaginationControls
-              page={safePage}
-              pageSize={PAGE_SIZE}
-              total={filteredRooms.length}
-              pageCount={pageCount}
+              page={pagination.page}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              pageCount={pagination.pageCount}
               onPageChange={handlePageChange}
             />
           ) : null}

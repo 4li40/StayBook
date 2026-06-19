@@ -9,19 +9,27 @@ import {
   type ReservationDerivedState,
   type ReservationResponse,
   type ReservationsResponse,
+  type RoomsResponse,
   type StaffAmenitiesResponse,
   type StaffReservationFilters,
   type StaffReservationsResponse,
   type StaffRoomFilters,
   type StaffRoomsResponse,
-  type Room,
   type RoomDetail,
 } from "@/lib/api";
+import { defaultRoomFilters, type RoomFiltersState } from "@/components/room-filters";
+import { getDefaultRoomsSearch } from "@/lib/dates";
 
 export type RoomsSearch = {
   checkInDate: string;
   checkOutDate: string;
   guests: string;
+};
+
+export type RoomsListParams = RoomsSearch & {
+  page: number;
+  pageSize: number;
+  filters: RoomFiltersState;
 };
 
 export type RoomAvailabilitySearch = RoomsSearch & {
@@ -34,14 +42,27 @@ export type MyReservationFilters = {
   state?: ReservationDerivedState | "all";
 };
 
-type RoomsResponse = {
-  rooms: Room[];
-};
+export function getDefaultRoomsListParams(): RoomsListParams {
+  return {
+    ...getDefaultRoomsSearch(),
+    page: 1,
+    pageSize: 9,
+    filters: defaultRoomFilters,
+  };
+}
 
-const normalizeRoomsSearch = (search: RoomsSearch) => ({
+const normalizeRoomsListParams = (search: RoomsListParams) => ({
   checkInDate: search.checkInDate,
   checkOutDate: search.checkOutDate,
   guests: search.guests,
+  page: search.page,
+  pageSize: search.pageSize,
+  filters: search.filters,
+  priceMin: search.filters.priceMin,
+  priceMax: search.filters.priceMax,
+  types: search.filters.types,
+  amenityIds: search.filters.amenityIds,
+  onlyAvailable: search.filters.onlyAvailable,
 });
 
 const normalizeStaffRoomFilters = (filters: StaffRoomFilters = {}) => ({
@@ -66,8 +87,8 @@ const normalizeStaffReservationFilters = (
 export const roomKeys = {
   all: ["rooms"] as const,
   lists: () => [...roomKeys.all, "list"] as const,
-  list: (search: RoomsSearch) =>
-    [...roomKeys.lists(), normalizeRoomsSearch(search)] as const,
+  list: (search: RoomsListParams) =>
+    [...roomKeys.lists(), normalizeRoomsListParams(search)] as const,
   details: () => [...roomKeys.all, "detail"] as const,
   detail: (roomId: string) => [...roomKeys.details(), roomId] as const,
   availability: (search: RoomAvailabilitySearch) =>
@@ -122,9 +143,31 @@ export const staffReservationKeys = {
     ] as const,
 };
 
-export function roomsQueryOptions(search: RoomsSearch) {
-  const normalized = normalizeRoomsSearch(search);
-  const query = new URLSearchParams(normalized);
+export function roomsQueryOptions(search: RoomsListParams) {
+  const normalized = normalizeRoomsListParams(search);
+  const query = new URLSearchParams({
+    checkInDate: normalized.checkInDate,
+    checkOutDate: normalized.checkOutDate,
+    guests: normalized.guests,
+    page: String(normalized.page),
+    pageSize: String(normalized.pageSize),
+  });
+
+  if (normalized.priceMin != null) {
+    query.set("priceMin", String(normalized.priceMin));
+  }
+  if (normalized.priceMax != null) {
+    query.set("priceMax", String(normalized.priceMax));
+  }
+  if (normalized.types.length > 0) {
+    query.set("types", normalized.types.join(","));
+  }
+  if (normalized.amenityIds.length > 0) {
+    query.set("amenityIds", normalized.amenityIds.join(","));
+  }
+  if (normalized.onlyAvailable) {
+    query.set("onlyAvailable", "true");
+  }
 
   return queryOptions({
     queryKey: roomKeys.list(normalized),

@@ -7,14 +7,14 @@ import { useMemo } from "react";
 
 import { getErrorMessage } from "@/lib/api";
 import { getDefaultRoomsSearch } from "@/lib/dates";
-import { roomsQueryOptions } from "@/lib/queries";
+import { getDefaultRoomsListParams, roomsQueryOptions } from "@/lib/queries";
 import RoomCard from "@/components/room-card";
 import RoomsSearchForm from "@/components/rooms-search-form";
 
 export const Route = createFileRoute("/")({
   loader: ({ context: { queryClient } }) =>
     queryClient.ensureQueryData({
-      ...roomsQueryOptions(getDefaultRoomsSearch()),
+      ...roomsQueryOptions(getDefaultRoomsListParams()),
       revalidateIfStale: true,
     }),
   component: LandingComponent,
@@ -55,7 +55,8 @@ const bentoImages = [
 ];
 
 function LandingComponent() {
-  const defaultSearch = useMemo(() => getDefaultRoomsSearch(), []);
+  const defaultSearch = useMemo(() => getDefaultRoomsListParams(), []);
+  const defaultFormSearch = useMemo(() => getDefaultRoomsSearch(), []);
   const navigate = useNavigate();
 
   const { data, error, isPending, isFetching } = useQuery(
@@ -93,7 +94,7 @@ function LandingComponent() {
         {/* Prominent Search Bar */}
         <div className="relative z-20 w-full max-w-4xl px-6 -mb-24">
           <RoomsSearchForm
-            defaultValues={defaultSearch}
+            defaultValues={defaultFormSearch}
             onSubmit={(value) => {
               void navigate({
                 to: "/rooms",
@@ -101,6 +102,7 @@ function LandingComponent() {
                   checkInDate: value.checkInDate,
                   checkOutDate: value.checkOutDate,
                   guests: value.guests,
+                  page: 1,
                 },
               });
             }}
@@ -159,14 +161,14 @@ function LandingComponent() {
 
             {!isPending
               ? rooms.slice(0, 3).map((room) => (
-                  <RoomCard key={room.id} room={room} searchParams={defaultSearch} />
+                  <RoomCard key={room.id} room={room} searchParams={defaultFormSearch} />
                 ))
               : null}
           </div>
 
           {!isPending && rooms.length > 3 ? (
             <div className="flex justify-center pt-10">
-              <Link to="/rooms" search={defaultSearch}>
+              <Link to="/rooms" search={defaultFormSearch}>
                 <Button
                   variant="outline"
                   className="h-11 cursor-pointer rounded-full px-8 text-sm font-semibold uppercase tracking-widest"
