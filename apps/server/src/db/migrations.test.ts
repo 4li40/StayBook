@@ -6,6 +6,11 @@ const initialMigration = readFileSync(
   "utf8",
 );
 
+const guestOverlapMigration = readFileSync(
+  new URL("../../../../packages/db/src/migrations/0002_guest_no_overlapping_confirmed_dates.sql", import.meta.url),
+  "utf8",
+);
+
 describe("database migrations", () => {
   it("enforces non-overlapping confirmed reservations with a half-open GiST exclusion constraint", () => {
     expect(initialMigration).toContain('CREATE EXTENSION IF NOT EXISTS "btree_gist"');
@@ -18,6 +23,18 @@ describe("database migrations", () => {
       'daterange("check_in_date", "check_out_date", \'[)\') WITH &&',
     );
     expect(initialMigration).toContain('WHERE ("status" = \'confirmed\')');
+  });
+
+  it("prevents a single guest from holding overlapping confirmed reservations across rooms", () => {
+    expect(guestOverlapMigration).toContain(
+      'ALTER TABLE "reservations" ADD CONSTRAINT "reservations_no_overlapping_confirmed_guest_dates_excl"',
+    );
+    expect(guestOverlapMigration).toContain("EXCLUDE USING gist");
+    expect(guestOverlapMigration).toContain('"guest_id" WITH =');
+    expect(guestOverlapMigration).toContain(
+      'daterange("check_in_date", "check_out_date", \'[)\') WITH &&',
+    );
+    expect(guestOverlapMigration).toContain('WHERE ("status" = \'confirmed\')');
   });
 
   it("keeps date order and supporting availability indexes in the migration", () => {

@@ -22,9 +22,9 @@ vi.mock("@StayBook/db", () => ({
   db: {
     execute: vi.fn(),
   },
-  neonSql: {
+  neonSql: Object.assign(vi.fn(), {
     transaction: vi.fn(),
-  },
+  }),
 }));
 
 const app = express();
@@ -33,6 +33,7 @@ app.use("/api/reservations", reservationsRouter);
 app.use(errorHandler);
 
 const mockedExecute = vi.mocked(db.execute);
+const mockedNeonSql = vi.mocked(neonSql);
 const mockedTransaction = vi.mocked(neonSql.transaction);
 
 const ROOM_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
@@ -98,6 +99,7 @@ beforeEach(() => {
   dateNowSpy = undefined;
   authState.session = null;
   vi.clearAllMocks();
+  mockedNeonSql.mockResolvedValue([] as never);
 });
 
 describe("guest reservation authorization", () => {
@@ -189,6 +191,50 @@ describe("POST /api/reservations", () => {
     expect(res.body.error).toEqual({
       code: "CONFLICT",
       message: "Room is no longer available for those dates.",
+    });
+  });
+
+  it("returns a guest-specific conflict when the same account already overlaps these dates", async () => {
+    authenticateAs("guest");
+    mockedNeonSql.mockResolvedValueOnce([{ exists: true }] as never);
+
+    const res = await request(app).post("/api/reservations").send({
+      roomId: ROOM_ID,
+      checkInDate: "2027-01-10",
+      checkOutDate: "2027-01-12",
+      guestCount: 2,
+    });
+
+    expect(res.status).toBe(409);
+    expect(mockedTransaction).not.toHaveBeenCalled();
+    expect(res.body.error).toEqual({
+      code: "CONFLICT",
+      message:
+        "You already have a confirmed reservation that overlaps these dates.",
+    });
+  });
+
+  it("still maps a guest exclusion violation to the guest-specific conflict message", async () => {
+    authenticateAs("guest");
+    mockedTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("exclusion violation"), {
+        code: "23P01",
+        constraint: "reservations_no_overlapping_confirmed_guest_dates_excl",
+      }),
+    );
+
+    const res = await request(app).post("/api/reservations").send({
+      roomId: ROOM_ID,
+      checkInDate: "2027-01-10",
+      checkOutDate: "2027-01-12",
+      guestCount: 2,
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toEqual({
+      code: "CONFLICT",
+      message:
+        "You already have a confirmed reservation that overlaps these dates.",
     });
   });
 

@@ -5,11 +5,12 @@ import { ApiError } from "../api/http";
 import { createBooking } from "./booking";
 
 vi.mock("@StayBook/db", () => ({
-  neonSql: {
+  neonSql: Object.assign(vi.fn(), {
     transaction: vi.fn(),
-  },
+  }),
 }));
 
+const mockedNeonSql = vi.mocked(neonSql);
 const mockedTransaction = vi.mocked(neonSql.transaction);
 
 const ROOM_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
@@ -59,6 +60,7 @@ function expectApiError(error: unknown, status: number, code: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedNeonSql.mockResolvedValue([] as never);
 });
 
 describe("createBooking", () => {
@@ -88,6 +90,20 @@ describe("createBooking", () => {
       totalPrice: 50000,
       status: "confirmed",
     });
+    expect(mockedNeonSql).toHaveBeenCalledBefore(mockedTransaction);
+  });
+
+  it("rejects a booking before the transaction when the guest already overlaps these dates", async () => {
+    mockedNeonSql.mockResolvedValueOnce([{ exists: true }] as never);
+
+    await expect(createBooking(input)).rejects.toMatchObject({
+      status: 409,
+      code: "CONFLICT",
+      message:
+        "You already have a confirmed reservation that overlaps these dates.",
+    });
+
+    expect(mockedTransaction).not.toHaveBeenCalled();
   });
 
   it("maps overlap exclusion violations to a conflict response", async () => {
@@ -99,6 +115,22 @@ describe("createBooking", () => {
       status: 409,
       code: "CONFLICT",
       message: "Room is no longer available for those dates.",
+    });
+  });
+
+  it("maps guest overlap violations to a guest-specific conflict response", async () => {
+    mockedTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("exclusion violation"), {
+        code: "23P01",
+        constraint: "reservations_no_overlapping_confirmed_guest_dates_excl",
+      }),
+    );
+
+    await expect(createBooking(input)).rejects.toMatchObject({
+      status: 409,
+      code: "CONFLICT",
+      message:
+        "You already have a confirmed reservation that overlaps these dates.",
     });
   });
 

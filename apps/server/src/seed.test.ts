@@ -134,6 +134,22 @@ describe("seed plan", () => {
     }
   });
 
+  it("does not let one guest hold overlapping confirmed reservations across rooms", () => {
+    const confirmedReservations = SEED_RESERVATIONS.filter(
+      (reservation) => reservation.status === "confirmed",
+    );
+
+    for (const [index, first] of confirmedReservations.entries()) {
+      for (const second of confirmedReservations.slice(index + 1)) {
+        if (first.guestEmail !== second.guestEmail) {
+          continue;
+        }
+
+        expect(rangesOverlap(first, second)).toBe(false);
+      }
+    }
+  });
+
   it("only references seeded rooms and users, and always has positive stay lengths", () => {
     const roomNames = new Set(ROOMS.map((room) => room.name));
     const guestEmails = new Set(GUEST_USERS.map((guest) => guest.email));

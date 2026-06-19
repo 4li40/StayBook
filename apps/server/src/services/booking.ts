@@ -3,7 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
 import { type ReservationDerivedState } from "../api/dates";
-import { ApiError, getDatabaseErrorCode } from "../api/http";
+import { ApiError, getDatabaseErrorConstraint, getDatabaseErrorCode } from "../api/http";
 
 const roomValidationSchema = z.object({
   id: z.string(),
@@ -37,10 +37,31 @@ export type CreateBookingInput = {
   guestCount: number;
 };
 
+export const ROOM_OVERLAP_CONSTRAINT_NAME =
+  "reservations_no_overlapping_confirmed_room_dates_excl";
+export const GUEST_OVERLAP_CONSTRAINT_NAME =
+  "reservations_no_overlapping_confirmed_guest_dates_excl";
+
+const GUEST_OVERLAP_ERROR_MESSAGE =
+  "You already have a confirmed reservation that overlaps these dates.";
+
 export async function createBooking(
   input: CreateBookingInput,
 ): Promise<ReservationRow> {
   const { roomId, guestId, checkInDate, checkOutDate, guestCount } = input;
+
+  const existingGuestOverlap = await neonSql`
+    select 1
+    from reservations
+    where guest_id = ${guestId}
+      and status = 'confirmed'
+      and daterange(check_in_date, check_out_date, '[)')
+        && daterange(${checkInDate}::date, ${checkOutDate}::date, '[)')
+    limit 1
+  `;
+  if (existingGuestOverlap.length > 0) {
+    throw new ApiError(409, "CONFLICT", GUEST_OVERLAP_ERROR_MESSAGE);
+  }
 
   try {
     const results = await neonSql.transaction((txnSql) => [
@@ -110,6 +131,10 @@ export async function createBooking(
     );
   } catch (error) {
     if (getDatabaseErrorCode(error) === "23P01") {
+      if (getDatabaseErrorConstraint(error) === GUEST_OVERLAP_CONSTRAINT_NAME) {
+        throw new ApiError(409, "CONFLICT", GUEST_OVERLAP_ERROR_MESSAGE);
+      }
+
       throw new ApiError(
         409,
         "CONFLICT",

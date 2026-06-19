@@ -15,6 +15,13 @@
       "when": 1781771984499,
       "tag": "0001_chunky_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781858400000,
+      "tag": "0002_guest_no_overlapping_confirmed_dates",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # StayBook PRD Implementation Tracker
 
-Last audited: 2026-06-18
+Last audited: 2026-06-19
 
 Source of truth: `docs/PRD.md`
 
@@ -39,6 +39,8 @@ Verification snapshot:
 - [x] Migration enables `btree_gist`.
 - [x] Supporting indexes exist for room active/capacity, reservation room/date/status, reservation guest, reservation status, check-in date, and check-out date.
 - [x] Cancelled reservations do not block availability because overlap queries and the exclusion constraint only consider `status = 'confirmed'`.
+- [x] Per-guest overlap exclusion constraint (`reservations_no_overlapping_confirmed_guest_dates_excl`) prevents one account from holding overlapping confirmed reservations across different rooms. Booking service maps this violation to a guest-specific `409 CONFLICT` ("You already have a confirmed reservation that overlaps these dates.").
+- [x] Application-level guest overlap check in `createBooking` rejects the booking before the transaction even if the database migration has not been applied.
 
 ### Guest Room Search And Room Details
 

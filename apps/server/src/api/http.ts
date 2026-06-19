@@ -82,3 +82,12 @@ export function getDatabaseErrorCode(error: unknown) {
   const code = error.code;
   return typeof code === "string" ? code : undefined;
 }
+
+export function getDatabaseErrorConstraint(error: unknown) {
+  if (typeof error !== "object" || error === null || !("constraint" in error)) {
+    return undefined;
+  }
+
+  const constraint = error.constraint;
+  return typeof constraint === "string" ? constraint : undefined;
+}
