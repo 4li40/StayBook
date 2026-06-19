@@ -60,7 +60,10 @@ const roomBodySchema = z
     maxGuests: z.number().int().min(1).max(20),
     nightlyPrice: z.number().int().positive().max(9_999_999),
     amenityIds: z.array(z.string().uuid()).max(50).default([]),
-    photos: z.array(roomPhotoInputSchema).max(12).default([]),
+    photos: z
+      .array(roomPhotoInputSchema)
+      .min(1, "Add at least one photo.")
+      .max(12, "A room can have at most 12 photos."),
   })
   .strict()
   .transform((room) => ({
@@ -241,10 +244,6 @@ async function replaceRoomPhotos(
     delete from room_photos
     where room_id = ${roomId}::uuid
   `);
-
-  if (photos.length === 0) {
-    return;
-  }
 
   const requestedPrimaryIndex = photos.findIndex((photo) => photo.isPrimary);
   const primaryIndex = requestedPrimaryIndex >= 0 ? requestedPrimaryIndex : 0;

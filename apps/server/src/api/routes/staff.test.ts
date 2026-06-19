@@ -119,6 +119,12 @@ function staffReservationRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const validRoomPhoto = {
+  url: "https://example.com/rooms/garden-loft.jpg",
+  altText: "Garden loft exterior",
+  isPrimary: true,
+};
+
 const validRoomBody = {
   name: "Garden Loft",
   type: "loft",
@@ -126,7 +132,7 @@ const validRoomBody = {
   maxGuests: 2,
   nightlyPrice: 30000,
   amenityIds: [],
-  photos: [],
+  photos: [validRoomPhoto],
 };
 
 beforeEach(() => {
@@ -207,6 +213,12 @@ describe("staff room management", () => {
       ...validRoomBody,
       id: ROOM_ID,
     });
+    const missingPhotos = await request(app)
+      .post("/api/staff/rooms")
+      .send({ ...validRoomBody, photos: [] });
+    const omittedPhotos = await request(app)
+      .post("/api/staff/rooms")
+      .send({ ...validRoomBody, photos: undefined });
 
     expect(missingRequired.status).toBe(400);
     expect(invalidPrice.status).toBe(400);
@@ -214,6 +226,56 @@ describe("staff room management", () => {
       expect.arrayContaining([expect.objectContaining({ path: "nightlyPrice" })]),
     );
     expect(unexpectedField.status).toBe(400);
+    expect(missingPhotos.status).toBe(400);
+    expect(missingPhotos.body.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "photos", message: "Add at least one photo." }),
+      ]),
+    );
+    expect(omittedPhotos.status).toBe(400);
+    expect(omittedPhotos.body.error.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: "photos" })]),
+    );
+    expect(mockedExecute).not.toHaveBeenCalled();
+  });
+
+  it("rejects rooms with more than 12 photos", async () => {
+    authenticateAs("staff");
+
+    const tooManyPhotos = Array.from({ length: 13 }, (_, index) => ({
+      url: `https://example.com/rooms/garden-loft-${index}.jpg`,
+      isPrimary: index === 0,
+    }));
+
+    const res = await request(app)
+      .post("/api/staff/rooms")
+      .send({ ...validRoomBody, photos: tooManyPhotos });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "photos",
+          message: "A room can have at most 12 photos.",
+        }),
+      ]),
+    );
+    expect(mockedExecute).not.toHaveBeenCalled();
+  });
+
+  it("rejects room updates that drop every photo", async () => {
+    authenticateAs("staff");
+
+    const res = await request(app)
+      .patch(`/api/staff/rooms/${ROOM_ID}`)
+      .send({ ...validRoomBody, photos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "photos", message: "Add at least one photo." }),
+      ]),
+    );
     expect(mockedExecute).not.toHaveBeenCalled();
   });
 
@@ -221,6 +283,7 @@ describe("staff room management", () => {
     authenticateAs("staff");
     mockedExecute
       .mockResolvedValueOnce(mockResult([{ id: ROOM_ID }]))
+      .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(mockResult([staffRoomRow(validRoomBody)]));
@@ -240,6 +303,7 @@ describe("staff room management", () => {
     authenticateAs("staff");
     mockedExecute
       .mockResolvedValueOnce(mockResult([{ id: ROOM_ID }]))
+      .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(mockResult([]))
       .mockResolvedValueOnce(
