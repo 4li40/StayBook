@@ -11,8 +11,6 @@ type RoomCardProps = {
 };
 
 export default function RoomCard({ room, searchParams }: RoomCardProps) {
-  const badge = room.amenities[0]?.name ?? room.type;
-
   return (
     <Link
       to="/rooms/$roomId"
@@ -45,11 +43,7 @@ export default function RoomCard({ room, searchParams }: RoomCardProps) {
             <span aria-label="Booked" className="absolute top-4 right-4 rounded-full bg-destructive text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-md">
               Booked
             </span>
-          ) : (
-            <span className="absolute top-4 right-4 rounded-full bg-gold-container text-on-gold-container text-[10px] font-bold uppercase tracking-wider px-3 py-1 shadow-sm">
-              {badge}
-            </span>
-          )}
+          ) : null}
         </div>
 
         <div className="p-6 flex-1 flex flex-col">
