@@ -753,6 +753,10 @@ function RouteComponent() {
   const queryClient = useQueryClient();
   const [actionRoomId, setActionRoomId] = useState<string | null>(null);
   const [deletingRoom, setDeletingRoom] = useState<StaffRoom | null>(null);
+  const [statusChangeRoom, setStatusChangeRoom] = useState<{
+    room: StaffRoom;
+    active: boolean;
+  } | null>(null);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
@@ -828,15 +832,16 @@ function RouteComponent() {
     setIsFormOpen(true);
   }
 
-  async function setRoomActive(room: StaffRoom, active: boolean) {
-    const confirmed = window.confirm(
-      `${active ? "Reactivate" : "Deactivate"} ${room.name}?`,
-    );
+  function startStatusChange(room: StaffRoom, active: boolean) {
+    setStatusChangeRoom({ room, active });
+  }
 
-    if (!confirmed) {
+  async function confirmStatusChange() {
+    if (!statusChangeRoom) {
       return;
     }
 
+    const { room, active } = statusChangeRoom;
     setActionRoomId(room.id);
 
     try {
@@ -853,6 +858,7 @@ function RouteComponent() {
       toast.error(getErrorMessage(error));
     } finally {
       setActionRoomId(null);
+      setStatusChangeRoom(null);
     }
   }
 
@@ -1239,7 +1245,7 @@ function RouteComponent() {
                       <Button
                         type="button"
                         variant="destructive"
-                        onClick={() => setRoomActive(room, false)}
+                        onClick={() => startStatusChange(room, false)}
                         disabled={actionRoomId === room.id}
                       >
                         <Power data-icon="inline-start" />
@@ -1250,7 +1256,7 @@ function RouteComponent() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setRoomActive(room, true)}
+                          onClick={() => startStatusChange(room, true)}
                           disabled={actionRoomId === room.id}
                         >
                           <RotateCcw data-icon="inline-start" />
@@ -1306,6 +1312,57 @@ function RouteComponent() {
               }}
             >
               {actionRoomId === deletingRoom?.id ? "Deleting..." : "Delete room"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={statusChangeRoom !== null}
+        onOpenChange={(open) => {
+          if (!open && actionRoomId === null) {
+            setStatusChangeRoom(null);
+          }
+        }}
+      >
+        <AlertDialogContent size="default">
+          <AlertDialogHeader>
+            <AlertDialogMedia
+              className={
+                statusChangeRoom?.active
+                  ? "bg-tertiary/10 text-tertiary"
+                  : "bg-destructive/10 text-destructive"
+              }
+            >
+              <Power aria-hidden="true" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {statusChangeRoom?.active ? "Reactivate" : "Deactivate"}{" "}
+              {statusChangeRoom?.room.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sm:group-data-[size=default]/alert-dialog-content:col-start-2">
+              {statusChangeRoom?.active
+                ? "Guests will be able to view and book this room again."
+                : "Guests will no longer be able to view or book this room."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionRoomId !== null}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant={statusChangeRoom?.active ? "default" : "destructive"}
+              disabled={actionRoomId !== null || !statusChangeRoom}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmStatusChange();
+              }}
+            >
+              {actionRoomId === statusChangeRoom?.room.id
+                ? "Working..."
+                : statusChangeRoom?.active
+                  ? "Reactivate room"
+                  : "Deactivate room"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
