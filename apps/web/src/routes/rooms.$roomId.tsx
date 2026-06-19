@@ -53,7 +53,7 @@ function RoomDetailErrorComponent({ error }: { error: unknown }) {
               We couldn't find this room in our active collection. It may have been deactivated or booked.
             </p>
           </div>
-          <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary hover:opacity-95 mt-2">
+          <Link to="/rooms" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary hover:opacity-95 mt-2">
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to search
           </Link>
@@ -165,7 +165,7 @@ function RoomDetailComponent() {
 
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-10 pb-28 md:pb-16 animate-fade-in">
-      <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground transition-colors w-fit">
+      <Link to="/rooms" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground transition-colors w-fit">
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to rooms
       </Link>

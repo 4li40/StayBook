@@ -183,7 +183,7 @@ function RouteComponent() {
                 {emptyStates[activeTab].description}
               </p>
             </div>
-            <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary hover:opacity-90 mt-2">
+            <Link to="/rooms" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary hover:opacity-90 mt-2">
               {emptyStates[activeTab].actionText}
             </Link>
           </div>

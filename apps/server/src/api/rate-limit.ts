@@ -35,7 +35,7 @@ function createRateLimit({
 
 export const authCredentialRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 1000, //return back to 8 after testing
+  limit: 10000, //return back to 8 after testing
   message: "Too many login or registration attempts. Please wait and try again.",
 });
 

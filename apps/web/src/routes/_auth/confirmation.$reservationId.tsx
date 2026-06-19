@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_auth/confirmation/$reservationId")({
 function ConfirmationErrorComponent({ error }: { error: unknown }) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
+      <Link to="/rooms" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
         <ArrowLeft className="h-4 w-4" />
         Back to search
       </Link>
@@ -46,7 +46,7 @@ function ConfirmationComponent() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
+      <Link to="/rooms" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
         <ArrowLeft className="h-4 w-4" />
         Back to search
       </Link>
@@ -139,7 +139,7 @@ function ConfirmationDetails({ reservation }: { reservation: Reservation }) {
         <Link to="/dashboard" className="flex-1">
           <Button className="w-full cursor-pointer h-10 font-semibold text-sm">View My Stays</Button>
         </Link>
-        <Link to="/" className="flex-1">
+        <Link to="/rooms" className="flex-1">
           <Button variant="outline" className="w-full cursor-pointer h-10 font-semibold text-sm">Book Another Room</Button>
         </Link>
       </div>

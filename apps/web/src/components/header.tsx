@@ -8,7 +8,7 @@ export default function Header() {
   const { data: session } = authClient.useSession();
   const role = session?.user.role;
   const links = [
-    { to: "/", label: "Find a room" },
+    { to: "/rooms", label: "Find a room" },
     ...(role === "staff"
       ? [
           { to: "/staff", label: "Inventory" },
