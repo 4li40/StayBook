@@ -570,7 +570,13 @@ function RouteComponent() {
                   }
                 >
                   <SelectTrigger id="filter-amenity" className="w-full">
-                    <SelectValue placeholder="All amenities" />
+                    <SelectValue placeholder="All amenities">
+                      {(value) => {
+                        if (!value) return "All amenities";
+                        const amenity = amenities.find((a) => a.id === value);
+                        return amenity?.name ?? "All amenities";
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All amenities</SelectItem>
