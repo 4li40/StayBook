@@ -20,11 +20,14 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 w-full max-w-6xl flex-row items-center justify-between px-6">
-        <nav className="flex items-center gap-8">
-          <Link to="/" className="font-heading text-2xl text-foreground tracking-tight hover:opacity-90 transition-opacity">
-            StayBook
-          </Link>
-          <div className="flex items-center gap-6 text-sm font-medium">
+        <Link
+          to="/"
+          className="font-heading text-2xl text-foreground tracking-tight hover:opacity-90 transition-opacity"
+        >
+          StayBook
+        </Link>
+        <div className="flex items-center gap-6">
+          <nav className="flex items-center gap-6 text-sm font-medium">
             {links.map(({ to, label }) => {
               return (
                 <Link
@@ -39,9 +42,7 @@ export default function Header() {
                 </Link>
               );
             })}
-          </div>
-        </nav>
-        <div className="flex items-center gap-3">
+          </nav>
           <UserMenu />
         </div>
       </div>
