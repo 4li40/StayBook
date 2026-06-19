@@ -154,6 +154,7 @@ describe("staff authorization", () => {
       request(app).patch(`/api/staff/rooms/${ROOM_ID}`).send(validRoomBody),
       request(app).post(`/api/staff/rooms/${ROOM_ID}/deactivate`).send({}),
       request(app).post(`/api/staff/rooms/${ROOM_ID}/reactivate`).send({}),
+      request(app).delete(`/api/staff/rooms/${ROOM_ID}`),
       request(app).get("/api/staff/reservations"),
       request(app).post(`/api/staff/reservations/${RESERVATION_ID}/cancel`).send({}),
     ]);
@@ -285,6 +286,58 @@ describe("staff room management", () => {
     expect(deactivateRes.body.data.room.active).toBe(false);
     expect(reactivateRes.status).toBe(200);
     expect(reactivateRes.body.data.room.active).toBe(true);
+  });
+
+  it("deletes an inactive room with no reservation history", async () => {
+    authenticateAs("staff");
+    mockedExecute
+      .mockResolvedValueOnce(mockResult([{ id: INACTIVE_ROOM_ID, active: false }]))
+      .mockResolvedValueOnce(mockResult([{ id: INACTIVE_ROOM_ID }]));
+
+    const res = await request(app).delete(`/api/staff/rooms/${INACTIVE_ROOM_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.roomId).toBe(INACTIVE_ROOM_ID);
+  });
+
+  it("rejects deleting an active room", async () => {
+    authenticateAs("staff");
+    mockedExecute.mockResolvedValueOnce(
+      mockResult([{ id: ROOM_ID, active: true }]),
+    );
+
+    const res = await request(app).delete(`/api/staff/rooms/${ROOM_ID}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({
+      code: "ROOM_ACTIVE",
+    });
+    expect(mockedExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects deleting a room with reservation history", async () => {
+    authenticateAs("staff");
+    mockedExecute
+      .mockResolvedValueOnce(
+        mockResult([{ id: INACTIVE_ROOM_ID, active: false }]),
+      )
+      .mockResolvedValueOnce(mockResult([]));
+
+    const res = await request(app).delete(`/api/staff/rooms/${INACTIVE_ROOM_ID}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({
+      code: "ROOM_HAS_RESERVATIONS",
+    });
+  });
+
+  it("returns 404 when deleting a missing room", async () => {
+    authenticateAs("staff");
+    mockedExecute.mockResolvedValueOnce(mockResult([]));
+
+    const res = await request(app).delete(`/api/staff/rooms/${INACTIVE_ROOM_ID}`);
+
+    expect(res.status).toBe(404);
   });
 });
 

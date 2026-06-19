@@ -88,6 +88,10 @@ export type StaffRoomResponse = {
   room: StaffRoom;
 };
 
+export type StaffRoomDeleteResponse = {
+  roomId: string;
+};
+
 export type StaffRoomStatus = "active" | "inactive";
 
 export type StaffRoomFilters = {
@@ -292,7 +296,14 @@ export function getErrorMessage(error: unknown) {
     return issueText ? `${error.message} ${issueText}` : error.message;
   }
 
-  if (error instanceof Error) {
+  if (
+    error instanceof TypeError &&
+    /fetch|network|load failed/i.test(error.message)
+  ) {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+
+  if (error instanceof Error && error.message) {
     return error.message;
   }
 

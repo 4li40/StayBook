@@ -32,7 +32,7 @@ app.use((_req, res, next) => {
 app.use(
   cors({
     origin: env.CORS_ORIGIN,
-    methods: ["GET", "POST", "PATCH", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),

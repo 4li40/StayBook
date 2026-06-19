@@ -1,6 +1,17 @@
 import { Badge } from "@StayBook/ui/components/badge";
 import { Button } from "@StayBook/ui/components/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@StayBook/ui/components/alert-dialog";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -31,6 +42,7 @@ import {
   ListFilter,
   Pencil,
   Plus,
+  Power,
   RefreshCw,
   RotateCcw,
   Save,
@@ -47,6 +59,7 @@ import {
   apiRequest,
   getErrorMessage,
   type StaffRoom,
+  type StaffRoomDeleteResponse,
   type StaffRoomFilters,
   type StaffRoomInput,
   type StaffRoomResponse,
@@ -250,6 +263,7 @@ function RouteComponent() {
   const { session } = Route.useRouteContext();
   const queryClient = useQueryClient();
   const [actionRoomId, setActionRoomId] = useState<string | null>(null);
+  const [deletingRoom, setDeletingRoom] = useState<StaffRoom | null>(null);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [serverFieldErrors, setServerFieldErrors] = useState<FieldErrors>({});
@@ -402,6 +416,27 @@ function RouteComponent() {
       toast.error(getErrorMessage(error));
     } finally {
       setActionRoomId(null);
+    }
+  }
+
+  async function deleteRoom(room: StaffRoom) {
+    setActionRoomId(room.id);
+
+    try {
+      await apiRequest<StaffRoomDeleteResponse>(
+        `/api/staff/rooms/${room.id}`,
+        { method: "DELETE" },
+      );
+      toast.success(`${room.name} deleted.`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.all }),
+      ]);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setActionRoomId(null);
+      setDeletingRoom(null);
     }
   }
 
@@ -1171,25 +1206,74 @@ function RouteComponent() {
                         onClick={() => setRoomActive(room, false)}
                         disabled={actionRoomId === room.id}
                       >
-                        <Trash2 data-icon="inline-start" />
+                        <Power data-icon="inline-start" />
                         {actionRoomId === room.id ? "Working..." : "Deactivate"}
                       </Button>
                     ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setRoomActive(room, true)}
-                        disabled={actionRoomId === room.id}
-                      >
-                        <RotateCcw data-icon="inline-start" />
-                        {actionRoomId === room.id ? "Working..." : "Reactivate"}
-                      </Button>
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setRoomActive(room, true)}
+                          disabled={actionRoomId === room.id}
+                        >
+                          <RotateCcw data-icon="inline-start" />
+                          {actionRoomId === room.id ? "Working..." : "Reactivate"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => setDeletingRoom(room)}
+                          disabled={actionRoomId === room.id}
+                        >
+                          <Trash2 data-icon="inline-start" />
+                          Delete
+                        </Button>
+                      </>
                     )}
                   </CardFooter>
                 </Card>
               ))
             : null}
       </section>
+
+      <AlertDialog
+        open={deletingRoom !== null}
+        onOpenChange={(open) => {
+          if (!open && actionRoomId === null) {
+            setDeletingRoom(null);
+          }
+        }}
+      >
+        <AlertDialogContent size="default">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <Trash2 aria-hidden="true" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete {deletingRoom?.name}?</AlertDialogTitle>
+            <AlertDialogDescription className="sm:group-data-[size=default]/alert-dialog-content:col-start-2">
+              This permanently removes the room and its photos and amenities. Rooms with reservation history cannot be deleted — deactivate them instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionRoomId !== null}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={actionRoomId !== null || !deletingRoom}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deletingRoom) {
+                  void deleteRoom(deletingRoom);
+                }
+              }}
+            >
+              {actionRoomId === deletingRoom?.id ? "Deleting..." : "Delete room"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

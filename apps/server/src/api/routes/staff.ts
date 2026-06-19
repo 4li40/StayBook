@@ -424,3 +424,46 @@ staffRouter.post(
     sendData(res, { room });
   }),
 );
+
+staffRouter.delete(
+  "/rooms/:roomId",
+  asyncHandler(async (req, res) => {
+    const params = roomParamsSchema.parse(req.params);
+
+    const roomResult = await db.execute<{ id: string; active: boolean }>(sql`
+      select id, active
+      from rooms
+      where id = ${params.roomId}::uuid
+    `);
+
+    const room = roomResult.rows[0];
+    if (!room) {
+      throw new ApiError(404, "NOT_FOUND", "Room was not found.");
+    }
+
+    if (room.active) {
+      throw new ApiError(
+        400,
+        "ROOM_ACTIVE",
+        "Deactivate the room before deleting it.",
+      );
+    }
+
+    const deleteResult = await db.execute<{ id: string }>(sql`
+      delete from rooms
+      where id = ${params.roomId}::uuid
+        and not exists (select 1 from reservations where room_id = ${params.roomId}::uuid)
+      returning id
+    `);
+
+    if (deleteResult.rows.length === 0) {
+      throw new ApiError(
+        409,
+        "ROOM_HAS_RESERVATIONS",
+        "Cannot delete a room with reservation history. Deactivate it instead.",
+      );
+    }
+
+    sendData(res, { roomId: params.roomId });
+  }),
+);

@@ -9,6 +9,8 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "RATE_LIMITED"
   | "VALIDATION_ERROR"
+  | "ROOM_ACTIVE"
+  | "ROOM_HAS_RESERVATIONS"
   | "INTERNAL_SERVER_ERROR";
 
 export class ApiError extends Error {
