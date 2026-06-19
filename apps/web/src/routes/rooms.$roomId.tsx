@@ -138,7 +138,7 @@ function RoomDetailComponent() {
           data,
         );
         void queryClient.invalidateQueries({ queryKey: reservationKeys.mine() });
-        void queryClient.invalidateQueries({ queryKey: roomKeys.all });
+        void queryClient.invalidateQueries({ queryKey: roomKeys.lists() });
         navigate({
           to: "/confirmation/$reservationId",
           params: { reservationId: data.reservation.id },
