@@ -50,6 +50,8 @@
   --color-sage: #051913;
   --color-sage-container: #1a2e27;
   --color-on-sage-container: #80968d;
+  --color-tertiary-fixed: #d1e8dd;
+  --color-on-tertiary-fixed: #0b1f19;
   --color-ghost-border: #EAE9E6;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
