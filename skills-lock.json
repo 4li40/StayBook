@@ -25,6 +25,12 @@
       "skillPath": "skills/nodejs-express-server/SKILL.md",
       "computedHash": "94af4eda308df6d27b94cc866de0d3d857755c91da01808d3d8130d91ebaf231"
     },
+    "refactor": {
+      "source": "owainlewis/blueprint",
+      "sourceType": "github",
+      "skillPath": "skills/refactor/SKILL.md",
+      "computedHash": "029d7ff0afbb9b59c588c08af456875d773f6a45ca2cb97547fd53f865c4403b"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",

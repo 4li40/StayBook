@@ -2,76 +2,58 @@ import { Button } from "@StayBook/ui/components/button";
 import { Card, CardContent, CardTitle } from "@StayBook/ui/components/card";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { PaginationControls } from "@/components/pagination-controls";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { BedDouble, CalendarX, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
   apiRequest,
   getErrorMessage,
   type Reservation,
-  type ReservationsResponse,
 } from "@/lib/api";
 import { isMoreThan24HoursBeforeCheckIn } from "@/lib/dates";
-import { formatCents } from "@/lib/format";
+import { formatCents, formatStayDate, formatTimestamp } from "@/lib/format";
+import { myReservationsQueryOptions, reservationKeys } from "@/lib/queries";
 import { reservationBadgePresentation } from "@/lib/reservation-badges";
 
 export const Route = createFileRoute("/_auth/dashboard")({
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData({
+      ...myReservationsQueryOptions({
+        page: 1,
+        pageSize: 5,
+        state: "upcoming",
+      }),
+      revalidateIfStale: true,
+    }),
   component: RouteComponent,
 });
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-function formatDate(date: string) {
-  return dateFormatter.format(new Date(`${date}T00:00:00`));
-}
-
 function RouteComponent() {
   const { session } = Route.useRouteContext();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"upcoming" | "active" | "past" | "cancelled" | "all">("upcoming");
-  const [pagination, setPagination] = useState<{
-    page: number;
-    pageSize: number;
-    total: number;
-    pageCount: number;
-  } | null>(null);
-
-  const loadReservations = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const stateParam = activeTab !== "all" ? `&state=${activeTab}` : "";
-      const data = await apiRequest<ReservationsResponse>(
-        `/api/reservations/me?page=${page}&pageSize=5${stateParam}`
-      );
-      setReservations(data.reservations);
-      setPagination(data.pagination);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, activeTab]);
-
-  useEffect(() => {
-    loadReservations();
-  }, [loadReservations]);
+  const reservationsQuery = useQuery(
+    myReservationsQueryOptions({
+      page,
+      pageSize: 5,
+      state: activeTab,
+    }),
+  );
+  const reservations = reservationsQuery.data?.reservations ?? [];
+  const pagination = reservationsQuery.data?.pagination ?? null;
+  const isLoading = reservationsQuery.isPending;
+  const errorMessage = reservationsQuery.error
+    ? getErrorMessage(reservationsQuery.error)
+    : null;
 
   async function cancelReservation(reservation: Reservation) {
     const confirmed = window.confirm(
-      `Cancel your reservation for ${reservation.room.name} on ${formatDate(
+      `Cancel your reservation for ${reservation.room.name} on ${formatStayDate(
         reservation.checkInDate,
       )}?`,
     );
@@ -91,7 +73,7 @@ function RouteComponent() {
         }),
       });
       toast.success("Reservation cancelled.");
-      await loadReservations();
+      await queryClient.invalidateQueries({ queryKey: reservationKeys.mine() });
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -138,7 +120,7 @@ function RouteComponent() {
             View and manage your reservations and stay history.
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={loadReservations} disabled={isLoading} className="cursor-pointer">
+        <Button type="button" variant="outline" onClick={() => reservationsQuery.refetch()} disabled={isLoading || reservationsQuery.isFetching} className="cursor-pointer">
           <RefreshCw data-icon="inline-start" className="h-4 w-4" />
           Refresh
         </Button>
@@ -238,7 +220,7 @@ function RouteComponent() {
                       <div className="flex flex-col gap-1">
                         <h2 className="font-heading text-2xl text-foreground tracking-tight">{reservation.room.name}</h2>
                         <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground/80 mt-1">
-                          {reservation.room.type} · {formatDate(reservation.checkInDate)} – {formatDate(reservation.checkOutDate)}
+                          {reservation.room.type} · {formatStayDate(reservation.checkInDate)} – {formatStayDate(reservation.checkOutDate)}
                         </p>
                       </div>
                       <div className="text-left md:text-right">
@@ -255,7 +237,7 @@ function RouteComponent() {
                         </div>
                         <div>
                           <span className="font-semibold text-muted-foreground/80 block text-[9px] uppercase tracking-wider mb-0.5">Reserved On</span>
-                          <span className="font-bold text-foreground">{dateFormatter.format(new Date(reservation.createdAt))}</span>
+                          <span className="font-bold text-foreground">{formatTimestamp(reservation.createdAt)}</span>
                         </div>
                       </div>
 

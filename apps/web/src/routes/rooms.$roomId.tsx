@@ -1,21 +1,35 @@
 import { Button } from "@StayBook/ui/components/button";
 import { Input } from "@StayBook/ui/components/input";
 import { Label } from "@StayBook/ui/components/label";
-import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { useForm, useStore } from "@tanstack/react-form";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, BedDouble, CalendarDays, Check, Sparkles, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { apiRequest, ApiClientError, getErrorMessage, type AvailabilityResponse, type ReservationResponse, type RoomDetail } from "@/lib/api";
+import { apiRequest, ApiClientError, getErrorMessage, type ReservationResponse } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
-import { collectFieldErrors } from "@/lib/forms";
+import { calendarDateSchema, getDefaultRoomsSearch, getNightCount } from "@/lib/dates";
 import { formatCents } from "@/lib/format";
+import { collectFieldErrors } from "@/lib/forms";
+import {
+  myReservationQueryOptions,
+  reservationKeys,
+  roomAvailabilityQueryOptions,
+  roomKeys,
+  roomQueryOptions,
+} from "@/lib/queries";
 import { RoomCalendar } from "@/components/room-calendar";
 
 export const Route = createFileRoute("/rooms/$roomId")({
+  loader: ({ params, context: { queryClient } }) =>
+    queryClient.ensureQueryData({
+      ...roomQueryOptions(params.roomId),
+      revalidateIfStale: true,
+    }),
+  errorComponent: RoomDetailErrorComponent,
   component: RoomDetailComponent,
   validateSearch: (search: Record<string, unknown>) => ({
     checkInDate: typeof search.checkInDate === "string" ? search.checkInDate : undefined,
@@ -24,72 +38,62 @@ export const Route = createFileRoute("/rooms/$roomId")({
   }),
 });
 
-function toDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
-}
-
-function getNightCount(checkInDate: string, checkOutDate: string) {
-  const checkIn = new Date(`${checkInDate}T00:00:00`);
-  const checkOut = new Date(`${checkOutDate}T00:00:00`);
-  const nights = (checkOut.getTime() - checkIn.getTime()) / 86_400_000;
-  return Number.isFinite(nights) && nights > 0 ? nights : 0;
-}
-
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidCalendarDate(value: string) {
-  if (!datePattern.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  if (year === undefined || month === undefined || day === undefined) {
-    return false;
-  }
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
 const bookingFormFields = ["checkInDate", "checkOutDate", "guests", "form"] as const;
 type BookingFormField = (typeof bookingFormFields)[number];
+
+function RoomDetailErrorComponent({ error }: { error: unknown }) {
+  if (error instanceof ApiClientError && error.status === 404) {
+    return (
+      <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-10">
+        <div className="flex flex-col items-center gap-5 rounded-2xl border border-ghost-border bg-card p-12 text-center">
+          <BedDouble aria-hidden="true" className="text-muted-foreground/60 size-12" />
+          <div className="flex flex-col gap-2">
+            <h2 className="font-heading text-2xl text-foreground tracking-tight">Room Not Available</h2>
+            <p className="text-sm text-muted-foreground max-w-md">
+              We couldn't find this room in our active collection. It may have been deactivated or booked.
+            </p>
+          </div>
+          <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary hover:opacity-95 mt-2">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to search
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-10">
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        {getErrorMessage(error)}
+      </div>
+    </main>
+  );
+}
 
 function RoomDetailComponent() {
   const { roomId } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const today = useMemo(() => new Date(), []);
-  const [room, setRoom] = useState<RoomDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isNotFound, setIsNotFound] = useState(false);
+  const { data: room } = useSuspenseQuery(roomQueryOptions(roomId));
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<BookingFormField, string>>>({});
-  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
-  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const { data: session } = authClient.useSession();
 
+  const defaults = getDefaultRoomsSearch(today);
   const form = useForm({
     defaultValues: {
-      checkInDate: search.checkInDate ?? toDateInputValue(addDays(today, 1)),
-      checkOutDate: search.checkOutDate ?? toDateInputValue(addDays(today, 3)),
-      guests: search.guests ?? "2",
+      checkInDate: search.checkInDate ?? defaults.checkInDate,
+      checkOutDate: search.checkOutDate ?? defaults.checkOutDate,
+      guests: search.guests ?? defaults.guests,
     },
     validators: {
       onSubmit: z
         .object({
-          checkInDate: z.string().regex(datePattern, "Use YYYY-MM-DD format.").refine(isValidCalendarDate, "Use a real calendar date."),
-          checkOutDate: z.string().regex(datePattern, "Use YYYY-MM-DD format.").refine(isValidCalendarDate, "Use a real calendar date."),
+          checkInDate: calendarDateSchema,
+          checkOutDate: calendarDateSchema,
           guests: z.string().min(1, "Required"),
         })
         .refine(
@@ -121,6 +125,12 @@ function RoomDetailComponent() {
           }),
         });
         toast.success("Reservation confirmed.");
+        queryClient.setQueryData(
+          myReservationQueryOptions(data.reservation.id).queryKey,
+          data,
+        );
+        void queryClient.invalidateQueries({ queryKey: reservationKeys.mine() });
+        void queryClient.invalidateQueries({ queryKey: roomKeys.all });
         navigate({
           to: "/confirmation/$reservationId",
           params: { reservationId: data.reservation.id },
@@ -138,54 +148,20 @@ function RoomDetailComponent() {
 
   const formValues = useStore(form.store, (state) => state.values);
   const nights = getNightCount(formValues.checkInDate, formValues.checkOutDate);
-
-  const loadRoom = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    setIsNotFound(false);
-
-    try {
-      const data = await apiRequest<RoomDetail>(`/api/rooms/${roomId}`);
-      setRoom(data);
-    } catch (error) {
-      if (error instanceof ApiClientError && error.status === 404) {
-        setIsNotFound(true);
-      } else {
-        setErrorMessage(getErrorMessage(error));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [roomId]);
-
-  useEffect(() => {
-    loadRoom();
-  }, [loadRoom]);
-
-  useEffect(() => {
-    if (!room || !formValues.checkInDate || !formValues.checkOutDate || nights <= 0) {
-      setAvailability(null);
-      return;
-    }
-
-    let cancelled = false;
-    setIsCheckingAvailability(true);
-
-    apiRequest<AvailabilityResponse>(
-      `/api/rooms/${roomId}/availability?checkInDate=${formValues.checkInDate}&checkOutDate=${formValues.checkOutDate}&guests=${formValues.guests}`,
-    )
-      .then((data) => {
-        if (!cancelled) setAvailability(data);
-      })
-      .catch(() => {
-        if (!cancelled) setAvailability(null);
-      })
-      .finally(() => {
-        if (!cancelled) setIsCheckingAvailability(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [room, roomId, formValues.checkInDate, formValues.checkOutDate, formValues.guests, nights]);
+  const canCheckAvailability =
+    Boolean(formValues.checkInDate && formValues.checkOutDate && formValues.guests) &&
+    nights > 0;
+  const availabilityQuery = useQuery({
+    ...roomAvailabilityQueryOptions({
+      roomId,
+      checkInDate: formValues.checkInDate,
+      checkOutDate: formValues.checkOutDate,
+      guests: formValues.guests,
+    }),
+    enabled: canCheckAvailability,
+  });
+  const availability = canCheckAvailability ? availabilityQuery.data ?? null : null;
+  const isCheckingAvailability = availabilityQuery.isFetching;
 
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-10 px-6 py-10 pb-28 md:pb-16 animate-fade-in">
@@ -194,38 +170,7 @@ function RoomDetailComponent() {
         Back to rooms
       </Link>
 
-      {isLoading ? (
-        <div className="flex flex-col gap-8">
-          <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
-          <div className="grid gap-12 md:grid-cols-[1fr_360px] items-start">
-            <div className="flex flex-col gap-6">
-              <Skeleton className="h-10 w-2/3" />
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-32 w-full mt-4" />
-            </div>
-            <Skeleton className="h-[420px] w-full rounded-xl" />
-          </div>
-        </div>
-      ) : errorMessage ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {errorMessage}
-        </div>
-      ) : isNotFound ? (
-        <div className="flex flex-col items-center gap-5 rounded-2xl border border-ghost-border bg-card p-12 text-center">
-          <BedDouble aria-hidden="true" className="text-muted-foreground/60 size-12" />
-          <div className="flex flex-col gap-2">
-            <h2 className="font-heading text-2xl text-foreground tracking-tight">Room Not Available</h2>
-            <p className="text-sm text-muted-foreground max-w-md">
-              We couldn't find this room in our active collection. It may have been deactivated or booked.
-            </p>
-          </div>
-          <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary hover:opacity-95 mt-2">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to search
-          </Link>
-        </div>
-      ) : room ? (
-        <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-12">
           {room.photos.length > 0 ? (
             <div className="flex flex-col gap-4">
               <div className="relative aspect-[16/7] md:aspect-[21/9] w-full overflow-hidden rounded-2xl bg-muted border border-border/30 shadow-[0_8px_30px_rgba(26,43,60,0.04)]">
@@ -505,11 +450,10 @@ function RoomDetailComponent() {
               </div>
             </aside>
           </div>
-        </div>
-      ) : null}
+      </div>
 
       {/* Floating Bottom Booking Sheet for Mobile */}
-      {!isLoading && room && !isNotFound && (
+      {room ? (
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-md border-t border-border/60 px-6 py-4 flex items-center justify-between md:hidden shadow-[0_-8px_30px_rgba(26,43,60,0.06)] animate-slide-up">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/80 leading-none">
@@ -537,7 +481,7 @@ function RoomDetailComponent() {
             {availability !== null && !availability.available ? "Unavailable" : "Book Stay"}
           </Button>
         </div>
-      )}
+      ) : null}
     </main>
   );
 }

@@ -8,66 +8,23 @@ import {
   CardTitle,
 } from "@StayBook/ui/components/card";
 import { Input } from "@StayBook/ui/components/input";
-import { Label } from "@StayBook/ui/components/label";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
+import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { BedDouble, CalendarDays, Search, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { BedDouble, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import z from "zod";
 
-import { apiRequest, getErrorMessage, type Room } from "@/lib/api";
+import { getErrorMessage } from "@/lib/api";
+import { calendarDateSchema, getDefaultRoomsSearch, getNightCount } from "@/lib/dates";
 import { formatCents } from "@/lib/format";
-
-export const Route = createFileRoute("/")({
-  component: HomeComponent,
-});
-
-type RoomsResponse = {
-  rooms: Room[];
-};
-
-function toDateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
-}
-
-function getNightCount(checkInDate: string, checkOutDate: string) {
-  const checkIn = new Date(`${checkInDate}T00:00:00`);
-  const checkOut = new Date(`${checkOutDate}T00:00:00`);
-  const nights = (checkOut.getTime() - checkIn.getTime()) / 86_400_000;
-  return Number.isFinite(nights) && nights > 0 ? nights : 0;
-}
-
-const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidCalendarDate(value: string) {
-  if (!datePattern.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  if (year === undefined || month === undefined || day === undefined) {
-    return false;
-  }
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
+import { roomsQueryOptions, type RoomsSearch } from "@/lib/queries";
 
 const searchFormSchema = z
   .object({
-    checkInDate: z.string().regex(datePattern, "Use YYYY-MM-DD format.").refine(isValidCalendarDate, "Use a real calendar date."),
-    checkOutDate: z.string().regex(datePattern, "Use YYYY-MM-DD format.").refine(isValidCalendarDate, "Use a real calendar date."),
+    checkInDate: calendarDateSchema,
+    checkOutDate: calendarDateSchema,
     guests: z.string().min(1, "Required").refine((v) => Number(v) >= 1 && Number.isInteger(Number(v)), "At least 1 guest"),
   })
   .refine(
@@ -78,52 +35,39 @@ const searchFormSchema = z
     },
   );
 
+export const Route = createFileRoute("/")({
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData({
+      ...roomsQueryOptions(getDefaultRoomsSearch()),
+      revalidateIfStale: true,
+    }),
+  component: HomeComponent,
+});
+
 function HomeComponent() {
-  const today = useMemo(() => new Date(), []);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const defaultSearch = useMemo(() => getDefaultRoomsSearch(), []);
+  const [searchParams, setSearchParams] = useState<RoomsSearch>(defaultSearch);
 
   const form = useForm({
-    defaultValues: {
-      checkInDate: toDateInputValue(addDays(today, 1)),
-      checkOutDate: toDateInputValue(addDays(today, 3)),
-      guests: "2",
-    },
+    defaultValues: defaultSearch,
     validators: {
       onSubmit: searchFormSchema,
     },
-    onSubmit: async () => {
-      await loadRooms();
+    onSubmit: ({ value }) => {
+      setSearchParams({
+        checkInDate: value.checkInDate,
+        checkOutDate: value.checkOutDate,
+        guests: value.guests,
+      });
     },
   });
 
-  const formValues = useStore(form.store, (state) => state.values);
-  const { checkInDate, checkOutDate, guests } = formValues;
-  const nights = getNightCount(checkInDate, checkOutDate);
-
-  const loadRooms = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const query = new URLSearchParams({
-        checkInDate,
-        checkOutDate,
-        guests,
-      });
-      const data = await apiRequest<RoomsResponse>(`/api/rooms?${query}`);
-      setRooms(data.rooms);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkInDate, checkOutDate, guests]);
-
-  useEffect(() => {
-    loadRooms();
-  }, [loadRooms]);
+  const { data, error, isPending, isFetching } = useQuery(
+    roomsQueryOptions(searchParams),
+  );
+  const rooms = data?.rooms ?? [];
+  const errorMessage = error ? getErrorMessage(error) : null;
+  const nights = getNightCount(searchParams.checkInDate, searchParams.checkOutDate);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
@@ -231,7 +175,7 @@ function HomeComponent() {
           </form.Field>
 
           <div className="flex items-center justify-center p-1">
-            <Button type="submit" className="h-12 w-full md:w-12 md:rounded-full bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 md:p-0 transition-transform active:scale-95 cursor-pointer font-sans" disabled={isLoading}>
+            <Button type="submit" className="h-12 w-full md:w-12 md:rounded-full bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 md:p-0 transition-transform active:scale-95 cursor-pointer font-sans" disabled={isPending || isFetching}>
               <Search className="h-4 w-4" />
               <span className="md:hidden font-medium text-sm">Search Rooms</span>
             </Button>
@@ -246,7 +190,7 @@ function HomeComponent() {
       ) : null}
 
       <section className="grid gap-8 md:grid-cols-2 lg:grid-cols-3" style={{ gridAutoRows: '1fr' }} aria-live="polite">
-        {isLoading
+        {isPending
           ? Array.from({ length: 6 }).map((_, index) => (
               <Card key={index} className="overflow-hidden border border-ghost-border rounded-lg">
                 <Skeleton className="aspect-[4/3] w-full" />
@@ -262,13 +206,13 @@ function HomeComponent() {
             ))
           : null}
 
-        {!isLoading && rooms.length === 0 ? (
+        {!isPending && rooms.length === 0 ? (
           <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
             No rooms match this search. Try fewer guests or a different date range.
           </div>
         ) : null}
 
-        {!isLoading
+        {!isPending
           ? rooms.map((room) => {
               const total = room.nightlyPrice * nights;
 
@@ -277,7 +221,7 @@ function HomeComponent() {
                   key={room.id}
                   to="/rooms/$roomId"
                   params={{ roomId: room.id }}
-                  search={{ checkInDate, checkOutDate, guests }}
+                  search={searchParams}
                   className="group flex h-full flex-col outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
                   data-booked={room.booked || undefined}
                 >

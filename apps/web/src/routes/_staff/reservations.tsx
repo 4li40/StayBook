@@ -20,6 +20,7 @@ import {
 } from "@StayBook/ui/components/select";
 import { Textarea } from "@StayBook/ui/components/textarea";
 import { PaginationControls } from "@/components/pagination-controls";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BedDouble,
@@ -27,57 +28,42 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
   ApiClientError,
   apiRequest,
-  buildStaffReservationsQuery,
   getErrorMessage,
   type ReservationDerivedState,
   type ReservationStatus,
   type StaffReservation,
   type StaffReservationFilters,
-  type StaffReservationResponse,
-  type StaffReservationsResponse,
-  type StaffRoom,
-  type StaffRoomsResponse,
 } from "@/lib/api";
-import { formatCents } from "@/lib/format";
+import { formatCents, formatStayDate, formatStayDateTime, formatTimestamp } from "@/lib/format";
+import {
+  staffReservationKeys,
+  staffReservationsQueryOptions,
+  staffRoomsQueryOptions,
+} from "@/lib/queries";
 import { stateBadgeVariant, statusBadgeVariant } from "@/lib/reservation-badges";
 
 export const Route = createFileRoute("/_staff/reservations")({
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.ensureQueryData({
+        ...staffRoomsQueryOptions({}),
+        revalidateIfStale: true,
+      }),
+      queryClient.ensureQueryData({
+        ...staffReservationsQueryOptions(toFilters(emptyFilterForm, 1)),
+        revalidateIfStale: true,
+      }),
+    ]),
   component: RouteComponent,
 });
 
 const PAGE_SIZE = 10;
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-});
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(`${value}T00:00:00`));
-}
-
-function formatDateTime(value: string) {
-  return dateTimeFormatter.format(new Date(value));
-}
-
-function formatTimestamp(value: string) {
-  return dateFormatter.format(new Date(value));
-}
 
 const statusOptions: Array<{ value: ReservationStatus; label: string }> = [
   { value: "confirmed", label: "Confirmed" },
@@ -164,35 +150,10 @@ function validateFilterForm(form: FilterForm): FilterFieldErrors {
   return errors;
 }
 
-function collectFilterErrors(error: unknown): FilterFieldErrors {
-  if (!(error instanceof ApiClientError)) {
-    return {};
-  }
-
-  return (error.issues ?? []).reduce<FilterFieldErrors>(
-    (fieldErrors, issue) => {
-      const field = issue.path.split(".")[0] as keyof FilterForm;
-      if (field in emptyFilterForm && !fieldErrors[field]) {
-        fieldErrors[field] = issue.message;
-      }
-      return fieldErrors;
-    },
-    {},
-  );
-}
-
 function RouteComponent() {
   const { session } = Route.useRouteContext();
+  const queryClient = useQueryClient();
   const staffUser = session.data?.user;
-
-  const [rooms, setRooms] = useState<StaffRoom[]>([]);
-  const [reservations, setReservations] = useState<StaffReservation[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: PAGE_SIZE,
-    total: 0,
-    pageCount: 0,
-  });
 
   const [filterForm, setFilterForm] = useState<FilterForm>(emptyFilterForm);
   const [appliedFilters, setAppliedFilters] = useState<StaffReservationFilters>(
@@ -200,13 +161,24 @@ function RouteComponent() {
   );
   const [filterErrors, setFilterErrors] = useState<FilterFieldErrors>({});
 
-  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
-  const [reservationsError, setReservationsError] = useState<string | null>(
-    null,
+  const roomsQuery = useQuery(staffRoomsQueryOptions({}));
+  const reservationsQuery = useQuery(
+    staffReservationsQueryOptions(appliedFilters),
   );
-  const requestIdRef = useRef(0);
+  const rooms = roomsQuery.data?.rooms ?? [];
+  const reservations = reservationsQuery.data?.reservations ?? [];
+  const pagination = reservationsQuery.data?.pagination ?? {
+    page: appliedFilters.page ?? 1,
+    pageSize: appliedFilters.pageSize ?? PAGE_SIZE,
+    total: 0,
+    pageCount: 0,
+  };
+  const isLoadingRooms = roomsQuery.isPending;
+  const isLoading = reservationsQuery.isPending;
+  const roomsError = roomsQuery.error ? getErrorMessage(roomsQuery.error) : null;
+  const reservationsError = reservationsQuery.error
+    ? getErrorMessage(reservationsQuery.error)
+    : null;
 
   const [cancellingReservation, setCancellingReservation] =
     useState<StaffReservation | null>(null);
@@ -216,75 +188,6 @@ function RouteComponent() {
   const [cancelFieldError, setCancelFieldError] = useState<string | null>(
     null,
   );
-
-  const loadRooms = useCallback(async () => {
-    setIsLoadingRooms(true);
-    setRoomsError(null);
-    try {
-      const data = await apiRequest<StaffRoomsResponse>("/api/staff/rooms");
-      setRooms(data.rooms);
-    } catch (error) {
-      setRooms([]);
-      setRoomsError(getErrorMessage(error));
-    } finally {
-      setIsLoadingRooms(false);
-    }
-  }, []);
-
-  const loadReservations = useCallback(
-    async (filters: StaffReservationFilters) => {
-      const requestId = ++requestIdRef.current;
-      setIsLoading(true);
-      setReservationsError(null);
-
-      try {
-        const data = await apiRequest<StaffReservationsResponse>(
-          `/api/staff/reservations${buildStaffReservationsQuery(filters)}`,
-        );
-        if (requestId !== requestIdRef.current) return;
-        setReservations(data.reservations);
-        setPagination(data.pagination);
-      } catch (error) {
-        if (requestId !== requestIdRef.current) return;
-        setReservations([]);
-        setPagination({
-          page: filters.page ?? 1,
-          pageSize: filters.pageSize ?? PAGE_SIZE,
-          total: 0,
-          pageCount: 0,
-        });
-        const fieldErrors = collectFilterErrors(error);
-        const hasUnmappedIssues =
-          error instanceof ApiClientError &&
-          (error.issues?.some((issue) => {
-            const field = issue.path.split(".")[0] as keyof FilterForm;
-            return !(field in emptyFilterForm);
-          }) ?? false);
-        if (Object.keys(fieldErrors).length > 0 || hasUnmappedIssues) {
-          setFilterErrors({
-            ...fieldErrors,
-            ...(hasUnmappedIssues ? { form: getErrorMessage(error) } : {}),
-          });
-        } else {
-          setFilterErrors({});
-          setReservationsError(getErrorMessage(error));
-        }
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    loadRooms();
-  }, [loadRooms]);
-
-  useEffect(() => {
-    loadReservations(appliedFilters);
-  }, [appliedFilters, loadReservations]);
 
   const stateCounts = useMemo(() => {
     return reservations.reduce<Record<ReservationDerivedState, number>>(
@@ -370,7 +273,7 @@ function RouteComponent() {
     setCancelFieldError(null);
 
     try {
-      const data = await apiRequest<StaffReservationResponse>(
+      await apiRequest(
         `/api/staff/reservations/${cancellingReservation.id}/cancel`,
         {
           method: "POST",
@@ -381,13 +284,9 @@ function RouteComponent() {
       );
 
       toast.success("Reservation cancelled.");
-      setReservations((current) =>
-        current.map((reservation) =>
-          reservation.id === data.reservation.id
-            ? data.reservation
-            : reservation,
-        ),
-      );
+      await queryClient.invalidateQueries({
+        queryKey: staffReservationKeys.lists(),
+      });
       closeCancelModal();
     } catch (error) {
       let reasonError: string | null = null;
@@ -456,10 +355,15 @@ function RouteComponent() {
           type="button"
           variant="outline"
           onClick={() => {
-            loadRooms();
-            loadReservations(appliedFilters);
+            void roomsQuery.refetch();
+            void reservationsQuery.refetch();
           }}
-          disabled={isLoading || isLoadingRooms}
+          disabled={
+            isLoading ||
+            isLoadingRooms ||
+            roomsQuery.isFetching ||
+            reservationsQuery.isFetching
+          }
         >
           <RefreshCw data-icon="inline-start" />
           Refresh
@@ -722,8 +626,8 @@ function RouteComponent() {
                         <CardTitle>{reservation.room.name}</CardTitle>
                         <CardDescription className="capitalize">
                           {reservation.room.type} ·{" "}
-                          {formatDate(reservation.checkInDate)} to{" "}
-                          {formatDate(reservation.checkOutDate)}
+                          {formatStayDate(reservation.checkInDate)} to{" "}
+                          {formatStayDate(reservation.checkOutDate)}
                         </CardDescription>
                         <div className="flex flex-wrap items-center gap-2 pt-1">
                           <Badge
@@ -775,7 +679,7 @@ function RouteComponent() {
                       </p>
                       <p className="font-medium">
                         {reservation.cancelledAt
-                          ? formatDateTime(reservation.cancelledAt)
+                          ? formatStayDateTime(reservation.cancelledAt)
                           : "—"}
                       </p>
                       {reservation.cancellationReason ? (
@@ -834,8 +738,8 @@ function RouteComponent() {
                   </CardTitle>
                   <CardDescription>
                     {cancellingReservation.room.name} ·{" "}
-                    {formatDate(cancellingReservation.checkInDate)} to{" "}
-                    {formatDate(cancellingReservation.checkOutDate)}
+                    {formatStayDate(cancellingReservation.checkInDate)} to{" "}
+                    {formatStayDate(cancellingReservation.checkOutDate)}
                   </CardDescription>
                 </div>
                 <Button

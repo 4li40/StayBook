@@ -19,6 +19,7 @@ import {
 } from "@StayBook/ui/components/select";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { Textarea } from "@StayBook/ui/components/textarea";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BedDouble,
@@ -33,26 +34,40 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import {
   ApiClientError,
   apiRequest,
-  buildStaffRoomsQuery,
   getErrorMessage,
-  type Amenity,
-  type StaffAmenitiesResponse,
   type StaffRoom,
   type StaffRoomFilters,
   type StaffRoomInput,
   type StaffRoomResponse,
   type StaffRoomStatus,
-  type StaffRoomsResponse,
 } from "@/lib/api";
 import { formatCents } from "@/lib/format";
+import {
+  roomKeys,
+  staffAmenitiesQueryOptions,
+  staffAmenityKeys,
+  staffRoomKeys,
+  staffRoomsQueryOptions,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/_staff/staff")({
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.ensureQueryData({
+        ...staffRoomsQueryOptions({}),
+        revalidateIfStale: true,
+      }),
+      queryClient.ensureQueryData({
+        ...staffAmenitiesQueryOptions(),
+        revalidateIfStale: true,
+      }),
+    ]),
   component: RouteComponent,
 });
 
@@ -167,106 +182,38 @@ function toRoomFilters(form: RoomFilterForm): StaffRoomFilters {
   };
 }
 
-function collectRoomFilterErrors(error: unknown): RoomFilterFieldErrors {
-  if (!(error instanceof ApiClientError)) {
-    return {};
-  }
-
-  return (error.issues ?? []).reduce<RoomFilterFieldErrors>(
-    (fieldErrors, issue) => {
-      const field = issue.path.split(".")[0] as keyof RoomFilterForm;
-      if (field in emptyRoomFilterForm && !fieldErrors[field]) {
-        fieldErrors[field] = issue.message;
-      }
-      return fieldErrors;
-    },
-    {},
-  );
-}
-
 function RouteComponent() {
   const { session } = Route.useRouteContext();
-  const [rooms, setRooms] = useState<StaffRoom[]>([]);
-  const [amenities, setAmenities] = useState<Amenity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [actionRoomId, setActionRoomId] = useState<string | null>(null);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<RoomFormState>(emptyRoomForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [filterForm, setFilterForm] = useState<RoomFilterForm>(emptyRoomFilterForm);
   const [appliedFilters, setAppliedFilters] = useState<StaffRoomFilters>({});
   const [filterErrors, setFilterErrors] = useState<RoomFilterFieldErrors>({});
-  const [knownRoomTypes, setKnownRoomTypes] = useState<string[]>([]);
-  const requestIdRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  const loadInventory = useCallback(async (filters: StaffRoomFilters = {}) => {
-    const requestId = ++requestIdRef.current;
-    abortControllerRef.current?.abort();
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    setIsLoading(true);
-    setErrorMessage(null);
-    setFilterErrors({});
-
-    try {
-      const [roomsData, amenitiesData] = await Promise.all([
-        apiRequest<StaffRoomsResponse>(`/api/staff/rooms${buildStaffRoomsQuery(filters)}`, {
-          signal: controller.signal,
-        }),
-        apiRequest<StaffAmenitiesResponse>("/api/staff/amenities", {
-          signal: controller.signal,
-        }),
-      ]);
-      if (requestId !== requestIdRef.current) return;
-      setRooms(roomsData.rooms);
-      setAmenities(amenitiesData.amenities);
-      setKnownRoomTypes((current) => {
-        const merged = new Set(current);
-        for (const room of roomsData.rooms) {
-          merged.add(room.type);
-        }
-        return Array.from(merged).sort();
-      });
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-      if (controller.signal.aborted) return;
-      const fieldErrors = collectRoomFilterErrors(error);
-      const hasUnmappedIssues =
-        error instanceof ApiClientError &&
-        (error.issues?.some((issue) => {
-          const field = issue.path.split(".")[0] as keyof RoomFilterForm;
-          return !(field in emptyRoomFilterForm);
-        }) ?? false);
-      if (Object.keys(fieldErrors).length > 0 || hasUnmappedIssues) {
-        setFilterErrors({
-          ...fieldErrors,
-          ...(hasUnmappedIssues ? { form: getErrorMessage(error) } : {}),
-        });
-      } else {
-        setFilterErrors({});
-        setErrorMessage(getErrorMessage(error));
-      }
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInventory(appliedFilters);
-  }, [appliedFilters, loadInventory]);
+  const roomsQuery = useQuery(staffRoomsQueryOptions(appliedFilters));
+  const amenitiesQuery = useQuery(staffAmenitiesQueryOptions());
+  const rooms = roomsQuery.data?.rooms ?? [];
+  const amenities = amenitiesQuery.data?.amenities ?? [];
+  const isLoading = roomsQuery.isPending || amenitiesQuery.isPending;
+  const errorMessage =
+    roomsQuery.error || amenitiesQuery.error
+      ? getErrorMessage(roomsQuery.error ?? amenitiesQuery.error)
+      : null;
 
   const activeCount = useMemo(
     () => rooms.reduce((count, room) => count + (room.active ? 1 : 0), 0),
     [rooms],
   );
   const inactiveCount = rooms.length - activeCount;
+  const knownRoomTypes = useMemo(
+    () => Array.from(new Set(rooms.map((room) => room.type))).sort(),
+    [rooms],
+  );
   const staffUser = session.data?.user;
   const editingRoom = editingRoomId
     ? rooms.find((room) => room.id === editingRoomId)
@@ -304,7 +251,6 @@ function RouteComponent() {
     setFilterForm(emptyRoomFilterForm);
     setFilterErrors({});
     setAppliedFilters({});
-    setKnownRoomTypes([]);
   }
 
   function updateForm<Key extends keyof RoomFormState>(
@@ -404,7 +350,10 @@ function RouteComponent() {
       });
 
       toast.success(editingRoomId ? "Room updated." : "Room created.");
-      await loadInventory(appliedFilters);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.all }),
+      ]);
       setIsFormOpen(false);
       setEditingRoomId(null);
       setForm(emptyRoomForm);
@@ -436,7 +385,10 @@ function RouteComponent() {
         { method: "POST" },
       );
       toast.success(active ? "Room reactivated." : "Room deactivated.");
-      await loadInventory(appliedFilters);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: roomKeys.all }),
+      ]);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -459,8 +411,11 @@ function RouteComponent() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => loadInventory(appliedFilters)}
-            disabled={isLoading}
+            onClick={() => {
+              void queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() });
+              void queryClient.invalidateQueries({ queryKey: staffAmenityKeys.all });
+            }}
+            disabled={isLoading || roomsQuery.isFetching || amenitiesQuery.isFetching}
           >
             <RefreshCw data-icon="inline-start" />
             Refresh

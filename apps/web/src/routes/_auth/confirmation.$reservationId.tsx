@@ -6,60 +6,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@StayBook/ui/components/card";
-import { Skeleton } from "@StayBook/ui/components/skeleton";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BedDouble, Check, CalendarDays, Users } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
 
-import { apiRequest, getErrorMessage, type Reservation } from "@/lib/api";
-import { formatCents } from "@/lib/format";
+import { getErrorMessage, type Reservation } from "@/lib/api";
+import { getNightCount } from "@/lib/dates";
+import { formatCents, formatStayDate } from "@/lib/format";
+import { myReservationQueryOptions } from "@/lib/queries";
 
 export const Route = createFileRoute("/_auth/confirmation/$reservationId")({
+  loader: ({ params, context: { queryClient } }) =>
+    queryClient.ensureQueryData({
+      ...myReservationQueryOptions(params.reservationId),
+      revalidateIfStale: true,
+    }),
+  errorComponent: ConfirmationErrorComponent,
   component: ConfirmationComponent,
 });
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-function formatDate(date: string) {
-  return dateFormatter.format(new Date(`${date}T00:00:00`));
-}
-
-function getNightCount(checkInDate: string, checkOutDate: string) {
-  const checkIn = new Date(`${checkInDate}T00:00:00`);
-  const checkOut = new Date(`${checkOutDate}T00:00:00`);
-  const nights = (checkOut.getTime() - checkIn.getTime()) / 86_400_000;
-  return Number.isFinite(nights) && nights > 0 ? nights : 0;
+function ConfirmationErrorComponent({ error }: { error: unknown }) {
+  return (
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
+        <ArrowLeft className="h-4 w-4" />
+        Back to search
+      </Link>
+      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        {getErrorMessage(error)}
+      </div>
+    </main>
+  );
 }
 
 function ConfirmationComponent() {
   const { reservationId } = Route.useParams();
-  const [reservation, setReservation] = useState<Reservation | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const loadReservation = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const data = await apiRequest<{ reservation: Reservation }>(
-        `/api/reservations/me/${reservationId}`,
-      );
-      setReservation(data.reservation);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [reservationId]);
-
-  useEffect(() => {
-    loadReservation();
-  }, [loadReservation]);
+  const { data } = useSuspenseQuery(myReservationQueryOptions(reservationId));
+  const reservation = data.reservation;
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
@@ -68,18 +51,7 @@ function ConfirmationComponent() {
         Back to search
       </Link>
 
-      {isLoading ? (
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-        </div>
-      ) : errorMessage ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {errorMessage}
-        </div>
-      ) : reservation ? (
-        <ConfirmationDetails reservation={reservation} />
-      ) : null}
+      <ConfirmationDetails reservation={reservation} />
     </main>
   );
 }
@@ -113,14 +85,14 @@ function ConfirmationDetails({ reservation }: { reservation: Reservation }) {
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Check In</span>
             <p className="font-semibold text-foreground flex items-center gap-2">
               <CalendarDays aria-hidden="true" className="size-4 text-muted-foreground/60" />
-              {formatDate(reservation.checkInDate)}
+              {formatStayDate(reservation.checkInDate)}
             </p>
           </div>
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block mb-1">Check Out</span>
             <p className="font-semibold text-foreground flex items-center gap-2">
               <CalendarDays aria-hidden="true" className="size-4 text-muted-foreground/60" />
-              {formatDate(reservation.checkOutDate)}
+              {formatStayDate(reservation.checkOutDate)}
             </p>
           </div>
           <div>

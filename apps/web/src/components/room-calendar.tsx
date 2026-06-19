@@ -1,7 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { apiRequest, type BookedDateRange, type BookedDatesResponse } from "@/lib/api";
+import { type BookedDateRange } from "@/lib/api";
+import { roomBookedDatesQueryOptions } from "@/lib/queries";
 
 type RoomCalendarProps = {
   roomId: string;
@@ -34,9 +36,7 @@ function buildBookedSet(ranges: BookedDateRange[]): Set<string> {
     const end = Date.parse(`${range.checkOutDate}T00:00:00.000Z`);
     for (let t = start; t < end; t += 86_400_000) {
       const d = new Date(t);
-      set.add(
-        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`,
-      );
+      set.add(dateKey(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
     }
   }
   return set;
@@ -47,16 +47,19 @@ export function RoomCalendar({ roomId }: RoomCalendarProps) {
   const [currentDate, setCurrentDate] = useState(() => {
     return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
   });
-  const [bookedDates, setBookedDates] = useState<BookedDateRange[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   const year = currentDate.getUTCFullYear();
   const month = currentDate.getUTCMonth();
   const monthKey = toMonthKey(currentDate);
+  const { data, isFetching } = useQuery(
+    roomBookedDatesQueryOptions(roomId, monthKey),
+  );
+  const bookedDates = data?.bookedDates ?? [];
   const daysInMonth = getDaysInMonth(year, month);
   const firstDayOfWeek = getFirstDayOfWeek(year, month);
 
   const todayKey = dateKey(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const todayUtcMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
 
   const bookedSet = useMemo(() => buildBookedSet(bookedDates), [bookedDates]);
 
@@ -68,24 +71,6 @@ export function RoomCalendar({ roomId }: RoomCalendarProps) {
     setCurrentDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-
-    apiRequest<BookedDatesResponse>(`/api/rooms/${roomId}/booked-dates?month=${monthKey}`)
-      .then((data) => {
-        if (!cancelled) setBookedDates(data.bookedDates);
-      })
-      .catch(() => {
-        if (!cancelled) setBookedDates([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [roomId, monthKey]);
-
   const cells: Array<{ key: string; day: number | null; isBooked: boolean; isPast: boolean; isToday: boolean }> = [];
 
   for (let i = 0; i < firstDayOfWeek; i++) {
@@ -95,7 +80,7 @@ export function RoomCalendar({ roomId }: RoomCalendarProps) {
   for (let day = 1; day <= daysInMonth; day++) {
     const dk = dateKey(year, month, day);
     const d = new Date(Date.UTC(year, month, day));
-    const isPast = d.getTime() < Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const isPast = d.getTime() < todayUtcMs;
     cells.push({
       key: dk,
       day,
@@ -172,7 +157,7 @@ export function RoomCalendar({ roomId }: RoomCalendarProps) {
         })}
       </div>
 
-      {isLoading ? (
+      {isFetching ? (
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-sans">
           <span className="size-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
           Loading…
