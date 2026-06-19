@@ -1,4 +1,5 @@
 import { Button } from "@StayBook/ui/components/button";
+import { Hotel } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
@@ -25,9 +26,10 @@ export default function Header() {
       <nav className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-6 py-4">
         <Link
           to="/"
-          className="font-heading text-2xl text-foreground tracking-tight hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 font-heading text-2xl text-foreground tracking-tight hover:opacity-90 transition-opacity"
         >
-          StayBook
+          <Hotel className="h-6 w-6" />
+          <span>StayBook</span>
         </Link>
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6">
