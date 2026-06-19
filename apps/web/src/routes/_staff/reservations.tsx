@@ -59,7 +59,7 @@ export const Route = createFileRoute("/_staff/reservations")({
   loader: ({ context: { queryClient } }) =>
     Promise.all([
       queryClient.ensureQueryData({
-        ...staffRoomsQueryOptions({}),
+        ...staffRoomsQueryOptions({ page: 1, pageSize: 100 }),
         revalidateIfStale: true,
       }),
       queryClient.ensureQueryData({
@@ -168,7 +168,9 @@ function RouteComponent() {
   );
   const [filterErrors, setFilterErrors] = useState<FilterFieldErrors>({});
 
-  const roomsQuery = useQuery(staffRoomsQueryOptions({}));
+  const roomsQuery = useQuery(
+    staffRoomsQueryOptions({ page: 1, pageSize: 100 }),
+  );
   const reservationsQuery = useQuery(
     staffReservationsQueryOptions(appliedFilters),
   );

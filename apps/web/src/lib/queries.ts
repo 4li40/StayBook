@@ -66,6 +66,8 @@ const normalizeRoomsListParams = (search: RoomsListParams) => ({
 });
 
 const normalizeStaffRoomFilters = (filters: StaffRoomFilters = {}) => ({
+  page: filters.page ?? 1,
+  pageSize: filters.pageSize ?? 20,
   status: filters.status ?? null,
   type: filters.type ?? null,
   amenityId: filters.amenityId ?? null,

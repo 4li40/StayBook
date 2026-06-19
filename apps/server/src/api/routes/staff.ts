@@ -42,6 +42,12 @@ type RoomIdRow = {
   id: string;
 };
 
+type StaffRoomCountRow = {
+  total: string;
+  active: string;
+  inactive: string;
+};
+
 const roomParamsSchema = z.object({
   roomId: z.string().uuid(),
 });
@@ -78,6 +84,8 @@ const roomBodySchema = z
 
 const listStaffRoomsQuerySchema = z
   .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
     status: z.enum(["active", "inactive"]).optional(),
     type: z.string().trim().min(1).optional(),
     amenityId: z.string().uuid().optional(),
@@ -141,7 +149,11 @@ function buildStaffRoomFilters(query: ListStaffRoomsQuery): SQL {
     : sql``;
 }
 
-async function getStaffRooms(whereClause = sql``) {
+async function getStaffRooms(
+  whereClause = sql``,
+  limit?: number,
+  offset = 0,
+) {
   const result = await db.execute<StaffRoomListRow>(sql`
       select
         room.id,
@@ -183,6 +195,7 @@ async function getStaffRooms(whereClause = sql``) {
       ${whereClause}
       group by room.id, primary_photo.url
       order by room.active desc, room.name asc
+      ${limit === undefined ? sql`` : sql`limit ${limit} offset ${offset}`}
     `);
 
   return result.rows.map(normalizeStaffRoom);
@@ -294,10 +307,35 @@ staffRouter.get(
   asyncHandler(async (req, res) => {
     const query = listStaffRoomsQuerySchema.parse(req.query);
     const whereClause = buildStaffRoomFilters(query);
-    const rooms = await getStaffRooms(whereClause);
+    const offset = (query.page - 1) * query.pageSize;
+
+    const [countResult, rooms] = await Promise.all([
+      db.execute<StaffRoomCountRow>(sql`
+        select
+          count(*)::text as total,
+          count(*) filter (where room.active)::text as active,
+          count(*) filter (where not room.active)::text as inactive
+        from rooms room
+        ${whereClause}
+      `),
+      getStaffRooms(whereClause, query.pageSize, offset),
+    ]);
+    const counts = countResult.rows[0];
+    const total = Number(counts?.total ?? 0);
 
     sendData(res, {
       rooms,
+      pagination: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total,
+        pageCount: Math.ceil(total / query.pageSize),
+      },
+      summary: {
+        total,
+        active: Number(counts?.active ?? 0),
+        inactive: Number(counts?.inactive ?? 0),
+      },
     });
   }),
 );

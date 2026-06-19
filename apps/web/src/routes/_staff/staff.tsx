@@ -54,6 +54,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import {
   ApiClientError,
   apiRequest,
@@ -75,11 +76,13 @@ import {
   staffRoomsQueryOptions,
 } from "@/lib/queries";
 
+const PAGE_SIZE = 10;
+
 export const Route = createFileRoute("/_staff/staff")({
   loader: ({ context: { queryClient } }) =>
     Promise.all([
       queryClient.ensureQueryData({
-        ...staffRoomsQueryOptions({}),
+        ...staffRoomsQueryOptions({ page: 1, pageSize: PAGE_SIZE }),
         revalidateIfStale: true,
       }),
       queryClient.ensureQueryData({
@@ -259,9 +262,11 @@ const roomTypeOptions: Array<{ value: string; label: string }> = [
   { value: "penthouse", label: "Penthouse" },
 ];
 
-function toRoomFilters(form: RoomFilterForm): StaffRoomFilters {
+function toRoomFilters(form: RoomFilterForm, page = 1): StaffRoomFilters {
   const status = form.status as StaffRoomFilters["status"];
   return {
+    page,
+    pageSize: PAGE_SIZE,
     status: statusOptions.some((option) => option.value === status) ? status : undefined,
     type: form.type.trim() || undefined,
     amenityId: form.amenityId || undefined,
@@ -761,11 +766,30 @@ function RouteComponent() {
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const [filterForm, setFilterForm] = useState<RoomFilterForm>(emptyRoomFilterForm);
-  const [appliedFilters, setAppliedFilters] = useState<StaffRoomFilters>({});
+  const [appliedFilters, setAppliedFilters] = useState<StaffRoomFilters>(() =>
+    toRoomFilters(emptyRoomFilterForm),
+  );
   const [filterErrors, setFilterErrors] = useState<RoomFilterFieldErrors>({});
   const roomsQuery = useQuery(staffRoomsQueryOptions(appliedFilters));
   const amenitiesQuery = useQuery(staffAmenitiesQueryOptions());
   const rooms = roomsQuery.data?.rooms ?? [];
+  const pagination = roomsQuery.data?.pagination ?? {
+    page: appliedFilters.page ?? 1,
+    pageSize: appliedFilters.pageSize ?? PAGE_SIZE,
+    total: 0,
+    pageCount: 0,
+  };
+  const summary = roomsQuery.data?.summary ?? {
+    total: rooms.length,
+    active: rooms.reduce(
+      (count, room) => count + (room.active ? 1 : 0),
+      0,
+    ),
+    inactive: rooms.reduce(
+      (count, room) => count + (room.active ? 0 : 1),
+      0,
+    ),
+  };
   const amenities = amenitiesQuery.data?.amenities ?? [];
   const isLoading = roomsQuery.isPending || amenitiesQuery.isPending;
   const errorMessage =
@@ -773,13 +797,14 @@ function RouteComponent() {
       ? getErrorMessage(roomsQuery.error ?? amenitiesQuery.error)
       : null;
 
-  const activeCount = useMemo(
-    () => rooms.reduce((count, room) => count + (room.active ? 1 : 0), 0),
-    [rooms],
-  );
-  const inactiveCount = rooms.length - activeCount;
   const knownRoomTypes = useMemo(
-    () => Array.from(new Set(rooms.map((room) => room.type))).sort(),
+    () =>
+      Array.from(
+        new Set([
+          ...roomTypeOptions.map((option) => option.value),
+          ...rooms.map((room) => room.type),
+        ]),
+      ).sort(),
     [rooms],
   );
   const staffUser = session.user;
@@ -808,13 +833,22 @@ function RouteComponent() {
 
   function applyFilters() {
     setFilterErrors({});
-    setAppliedFilters(toRoomFilters(filterForm));
+    setAppliedFilters(toRoomFilters(filterForm, 1));
   }
 
   function resetFilters() {
     setFilterForm(emptyRoomFilterForm);
     setFilterErrors({});
-    setAppliedFilters({});
+    setAppliedFilters(toRoomFilters(emptyRoomFilterForm, 1));
+  }
+
+  function goToPage(page: number) {
+    const next = Math.max(1, Math.min(page, pagination.pageCount || 1));
+    if (next === appliedFilters.page) {
+      return;
+    }
+
+    setAppliedFilters((current) => ({ ...current, page: next }));
   }
 
   function startCreate() {
@@ -945,7 +979,7 @@ function RouteComponent() {
           <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
             <div className="flex flex-col gap-1">
               <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">Total rooms</CardDescription>
-              <CardTitle className="text-3xl tabular-nums">{rooms.length}</CardTitle>
+              <CardTitle className="text-3xl tabular-nums">{summary.total}</CardTitle>
             </div>
             <div className="flex size-9 items-center justify-center rounded-full bg-gold-container text-on-gold-container">
               <BedDouble aria-hidden="true" />
@@ -956,7 +990,7 @@ function RouteComponent() {
           <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
             <div className="flex flex-col gap-1">
               <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">Guest ready</CardDescription>
-              <CardTitle className="text-3xl tabular-nums">{activeCount}</CardTitle>
+              <CardTitle className="text-3xl tabular-nums">{summary.active}</CardTitle>
             </div>
             <div className="flex size-9 items-center justify-center rounded-full bg-tertiary-fixed text-on-tertiary-fixed">
               <Check aria-hidden="true" />
@@ -967,7 +1001,7 @@ function RouteComponent() {
           <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
             <div className="flex flex-col gap-1">
               <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">Offline</CardDescription>
-              <CardTitle className="text-3xl tabular-nums">{inactiveCount}</CardTitle>
+              <CardTitle className="text-3xl tabular-nums">{summary.inactive}</CardTitle>
             </div>
             <div className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <CircleOff aria-hidden="true" />
@@ -1130,7 +1164,7 @@ function RouteComponent() {
           </div>
           {!isLoading ? (
             <p className="text-sm text-muted-foreground tabular-nums">
-              {rooms.length} {rooms.length === 1 ? "room" : "rooms"}
+              {pagination.total} {pagination.total === 1 ? "room" : "rooms"}
             </p>
           ) : null}
         </div>
@@ -1278,6 +1312,16 @@ function RouteComponent() {
               ))
             : null}
       </section>
+
+      {!isLoading && rooms.length > 0 ? (
+        <PaginationControls
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          total={pagination.total}
+          pageCount={pagination.pageCount}
+          onPageChange={goToPage}
+        />
+      ) : null}
 
       <AlertDialog
         open={deletingRoom !== null}

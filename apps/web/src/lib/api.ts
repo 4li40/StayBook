@@ -63,6 +63,17 @@ export type StaffRoom = Room & {
 
 export type StaffRoomsResponse = {
   rooms: StaffRoom[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    pageCount: number;
+  };
+  summary: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
 };
 
 export type StaffAmenitiesResponse = {
@@ -115,6 +126,8 @@ export type StaffRoomDeleteResponse = {
 export type StaffRoomStatus = "active" | "inactive";
 
 export type StaffRoomFilters = {
+  page?: number;
+  pageSize?: number;
   status?: StaffRoomStatus;
   type?: string;
   amenityId?: string;
@@ -250,6 +263,8 @@ export function buildStaffReservationsQuery(
 
 export function buildStaffRoomsQuery(filters: StaffRoomFilters): string {
   const params = new URLSearchParams();
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
 
   if (filters.status) {
     params.set("status", filters.status);

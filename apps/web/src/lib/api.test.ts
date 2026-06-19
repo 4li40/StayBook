@@ -23,14 +23,14 @@ describe("staff API query builders", () => {
     );
   });
 
-  it("builds staff room filters only for selected values", () => {
+  it("builds staff room filters with pagination defaults", () => {
     expect(
       buildStaffRoomsQuery({
         status: "inactive",
         type: "suite",
         search: "garden view",
       }),
-    ).toBe("?status=inactive&type=suite&search=garden+view");
+    ).toBe("?page=1&pageSize=20&status=inactive&type=suite&search=garden+view");
   });
 });
 

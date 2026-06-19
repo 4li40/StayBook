@@ -179,24 +179,50 @@ describe("staff authorization", () => {
 describe("staff room management", () => {
   it("lists active and inactive rooms for staff", async () => {
     authenticateAs("staff");
-    mockedExecute.mockResolvedValueOnce(
-      mockResult([
+    mockedExecute
+      .mockResolvedValueOnce(
+        mockResult([{ total: "2", active: "1", inactive: "1" }]),
+      )
+      .mockResolvedValueOnce(mockResult([
         staffRoomRow(),
         staffRoomRow({
           id: INACTIVE_ROOM_ID,
           name: "Archived Studio",
           active: false,
         }),
-      ]),
-    );
+      ]));
 
-    const res = await request(app).get("/api/staff/rooms");
+    const res = await request(app).get("/api/staff/rooms?page=1&pageSize=1");
 
     expect(res.status).toBe(200);
     expect(res.body.data.rooms).toEqual([
       expect.objectContaining({ id: ROOM_ID, active: true }),
       expect.objectContaining({ id: INACTIVE_ROOM_ID, active: false }),
     ]);
+    expect(res.body.data.pagination).toEqual({
+      page: 1,
+      pageSize: 1,
+      total: 2,
+      pageCount: 2,
+    });
+    expect(res.body.data.summary).toEqual({
+      total: 2,
+      active: 1,
+      inactive: 1,
+    });
+
+    const listSql = normalizeSql(mockedExecute.mock.calls[1]?.[0]);
+    expect(listSql).toContain("limit");
+    expect(listSql).toContain("offset");
+  });
+
+  it("rejects invalid room pagination", async () => {
+    authenticateAs("staff");
+
+    const res = await request(app).get("/api/staff/rooms?page=0&pageSize=101");
+
+    expect(res.status).toBe(400);
+    expect(mockedExecute).not.toHaveBeenCalled();
   });
 
   it("validates required room fields, invalid prices, and unexpected fields", async () => {
