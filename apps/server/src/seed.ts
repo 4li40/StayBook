@@ -135,6 +135,166 @@ export const ROOMS = [
     maxGuests: 2,
     nightlyPrice: 12999,
   },
+  {
+    name: "Classic King Room",
+    type: "standard",
+    description:
+      "Timeless king room with crisp linens, blackout curtains, and a generous work desk.",
+    maxGuests: 2,
+    nightlyPrice: 16999,
+  },
+  {
+    name: "Twin Garden Room",
+    type: "standard",
+    description:
+      "Two comfortable twin beds overlooking the hotel garden, ideal for friends sharing.",
+    maxGuests: 2,
+    nightlyPrice: 15499,
+  },
+  {
+    name: "Superior Queen",
+    type: "standard",
+    description:
+      "Upgraded queen room with premium bedding, a seating nook, and city glimpses.",
+    maxGuests: 2,
+    nightlyPrice: 18999,
+  },
+  {
+    name: "City View Double",
+    type: "standard",
+    description:
+      "Bright corner room with two double beds and sweeping views of the skyline.",
+    maxGuests: 4,
+    nightlyPrice: 19999,
+  },
+  {
+    name: "Deluxe Twin Suite",
+    type: "suite",
+    description:
+      "Spacious suite with two twin beds, a lounge area, and a walk-in rainfall shower.",
+    maxGuests: 3,
+    nightlyPrice: 27999,
+  },
+  {
+    name: "Executive King Suite",
+    type: "suite",
+    description:
+      "Executive suite with a king bed, separate living room, and private workspace.",
+    maxGuests: 2,
+    nightlyPrice: 34999,
+  },
+  {
+    name: "Junior Suite",
+    type: "suite",
+    description:
+      "Open-plan junior suite with a king bed, sofa, and panoramic floor-to-ceiling windows.",
+    maxGuests: 2,
+    nightlyPrice: 25999,
+  },
+  {
+    name: "Panoramic Suite",
+    type: "suite",
+    description:
+      "Corner suite wrapped in windows, offering sunrise-to-sunset views and a dining area.",
+    maxGuests: 4,
+    nightlyPrice: 44999,
+  },
+  {
+    name: "Family Bunk Suite",
+    type: "family",
+    description:
+      "Fun-filled family suite with a queen bed, bunk beds, and a play-friendly layout.",
+    maxGuests: 6,
+    nightlyPrice: 25999,
+  },
+  {
+    name: "Connecting Family Room",
+    type: "family",
+    description:
+      "Two connecting rooms with a queen and twin configuration for flexible family stays.",
+    maxGuests: 6,
+    nightlyPrice: 27999,
+  },
+  {
+    name: "Grand Penthouse",
+    type: "penthouse",
+    description:
+      "Expansive penthouse with two bedrooms, a private terrace, and a chef-ready kitchenette.",
+    maxGuests: 4,
+    nightlyPrice: 99999,
+  },
+  {
+    name: "Skyline Penthouse",
+    type: "penthouse",
+    description:
+      "Romantic penthouse with skyline views, a soaking tub, and a private rooftop lounge.",
+    maxGuests: 2,
+    nightlyPrice: 84999,
+  },
+  {
+    name: "Artist Studio",
+    type: "studio",
+    description:
+      "Creative studio filled with natural light, curated artwork, and a cozy reading corner.",
+    maxGuests: 2,
+    nightlyPrice: 17999,
+  },
+  {
+    name: "Minimalist Studio",
+    type: "studio",
+    description:
+      "Clean-lined studio with smart storage, soft textures, and everything you need for a calm stay.",
+    maxGuests: 2,
+    nightlyPrice: 16499,
+  },
+  {
+    name: "Urban Loft",
+    type: "loft",
+    description:
+      "High-ceilinged loft with exposed beams, a king bed, and a mezzanine lounge.",
+    maxGuests: 3,
+    nightlyPrice: 26999,
+  },
+  {
+    name: "Industrial Loft",
+    type: "loft",
+    description:
+      "Modern industrial loft with polished concrete floors, a plush king bed, and city light views.",
+    maxGuests: 2,
+    nightlyPrice: 23999,
+  },
+  {
+    name: "Accessible King Room",
+    type: "standard",
+    description:
+      "Barrier-free king room with wide doorways, grab bars, and a roll-in shower.",
+    maxGuests: 2,
+    nightlyPrice: 15999,
+  },
+  {
+    name: "Poolside Cabana Room",
+    type: "standard",
+    description:
+      "Ground-floor room steps from the pool with a private patio and resort-style seating.",
+    maxGuests: 2,
+    nightlyPrice: 21999,
+  },
+  {
+    name: "Heritage Suite",
+    type: "suite",
+    description:
+      "Elegant suite with classic wood paneling, antique accents, and a luxurious marble bath.",
+    maxGuests: 2,
+    nightlyPrice: 32999,
+  },
+  {
+    name: "Zen Garden Room",
+    type: "standard",
+    description:
+      "Serene room with natural materials, a meditation nook, and garden views for restful sleep.",
+    maxGuests: 2,
+    nightlyPrice: 17499,
+  },
 ];
 
 export const ROOM_PHOTOS: Record<string, string[]> = {
@@ -177,6 +337,85 @@ export const ROOM_PHOTOS: Record<string, string[]> = {
   ],
   "Overlap Demo Queen": [
     "https://images.unsplash.com/photo-1590490359683-658d3d23f972?w=800",
+  ],
+  "Classic King Room": [
+    "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800",
+    "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800",
+  ],
+  "Twin Garden Room": [
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800",
+    "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800",
+  ],
+  "Superior Queen": [
+    "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800",
+  ],
+  "City View Double": [
+    "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800",
+    "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800",
+  ],
+  "Deluxe Twin Suite": [
+    "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800",
+    "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800",
+  ],
+  "Executive King Suite": [
+    "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800",
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800",
+  ],
+  "Junior Suite": [
+    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
+  ],
+  "Panoramic Suite": [
+    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800",
+    "https://images.unsplash.com/photo-1598928636135-d146006ff4be?w=800",
+  ],
+  "Family Bunk Suite": [
+    "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800",
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800",
+  ],
+  "Connecting Family Room": [
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800",
+    "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800",
+  ],
+  "Grand Penthouse": [
+    "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
+    "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800",
+  ],
+  "Skyline Penthouse": [
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800",
+    "https://images.unsplash.com/photo-1598928636135-d146006ff4be?w=800",
+  ],
+  "Artist Studio": [
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
+    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800",
+  ],
+  "Minimalist Studio": [
+    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800",
+    "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800",
+  ],
+  "Urban Loft": [
+    "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800",
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800",
+  ],
+  "Industrial Loft": [
+    "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800",
+    "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800",
+  ],
+  "Accessible King Room": [
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800",
+  ],
+  "Poolside Cabana Room": [
+    "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800",
+    "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800",
+  ],
+  "Heritage Suite": [
+    "https://images.unsplash.com/photo-1598928636135-d146006ff4be?w=800",
+    "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800",
+  ],
+  "Zen Garden Room": [
+    "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800",
+    "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800",
   ],
 };
 
@@ -235,6 +474,26 @@ export const ROOM_AMENITY_MAP: Record<string, string[]> = {
   ],
   "Turnover Studio": ["Wi-Fi", "Air Conditioning", "TV", "Shower"],
   "Overlap Demo Queen": ["Wi-Fi", "Heating", "TV", "Coffee Maker"],
+  "Classic King Room": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Safe"],
+  "Twin Garden Room": ["Wi-Fi", "Heating", "TV", "Coffee Maker", "Hair Dryer"],
+  "Superior Queen": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Safe", "Hair Dryer"],
+  "City View Double": ["Wi-Fi", "Air Conditioning", "Heating", "TV", "Iron"],
+  "Deluxe Twin Suite": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Shower", "Safe"],
+  "Executive King Suite": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Safe", "Coffee Maker", "Bathtub"],
+  "Junior Suite": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Balcony"],
+  "Panoramic Suite": ["Wi-Fi", "Air Conditioning", "Heating", "TV", "Mini Bar", "Safe", "Balcony", "Bathtub"],
+  "Family Bunk Suite": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Iron", "Shower"],
+  "Connecting Family Room": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Iron", "Shower", "Safe"],
+  "Grand Penthouse": ["Wi-Fi", "Air Conditioning", "Heating", "TV", "Mini Bar", "Safe", "Coffee Maker", "Hair Dryer", "Iron", "Balcony", "Bathtub"],
+  "Skyline Penthouse": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Safe", "Coffee Maker", "Balcony", "Bathtub"],
+  "Artist Studio": ["Wi-Fi", "Heating", "TV", "Coffee Maker", "Iron"],
+  "Minimalist Studio": ["Wi-Fi", "Air Conditioning", "TV", "Shower", "Safe"],
+  "Urban Loft": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Iron", "Safe"],
+  "Industrial Loft": ["Wi-Fi", "Air Conditioning", "TV", "Coffee Maker", "Hair Dryer"],
+  "Accessible King Room": ["Wi-Fi", "Air Conditioning", "TV", "Shower", "Safe"],
+  "Poolside Cabana Room": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Safe", "Balcony"],
+  "Heritage Suite": ["Wi-Fi", "Air Conditioning", "TV", "Mini Bar", "Safe", "Coffee Maker", "Bathtub"],
+  "Zen Garden Room": ["Wi-Fi", "Heating", "TV", "Coffee Maker", "Balcony"],
 };
 
 export const STAFF_USER: SeedUser = {

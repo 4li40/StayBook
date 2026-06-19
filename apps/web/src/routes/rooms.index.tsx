@@ -21,6 +21,7 @@ import RoomFilters, {
   type RoomFiltersState,
 } from "@/components/room-filters";
 import RoomsSearchForm from "@/components/rooms-search-form";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type RoomsRouteSearch = {
   checkInDate?: string;
@@ -56,12 +57,15 @@ export const Route = createFileRoute("/rooms/")({
   component: RoomsComponent,
 });
 
+const PAGE_SIZE = 9;
+
 function RoomsComponent() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const effective = useMemo(() => effectiveSearch(search), [search]);
   const [filters, setFilters] = useState<RoomFiltersState>(defaultRoomFilters);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const { data, error, isPending, isFetching } = useQuery(
     roomsQueryOptions(effective),
@@ -71,6 +75,12 @@ function RoomsComponent() {
     () => filterRooms(allRooms, filters),
     [allRooms, filters],
   );
+  const pageCount = Math.ceil(filteredRooms.length / PAGE_SIZE);
+  const safePage = Math.min(page, Math.max(pageCount, 1));
+  const paginatedRooms = useMemo(
+    () => filteredRooms.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredRooms, safePage],
+  );
   const errorMessage = error ? getErrorMessage(error) : null;
   const activeFilterCount = countActiveFilters(filters);
   const hasRooms = !isPending && allRooms.length > 0;
@@ -79,10 +89,17 @@ function RoomsComponent() {
     if (activeFilterCount > 0) {
       setFilters(defaultRoomFilters);
     }
+    setPage(1);
   }
 
   function handleFiltersChange(next: RoomFiltersState) {
     setFilters(next);
+    setPage(1);
+  }
+
+  function handlePageChange(nextPage: number) {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const filtersPanel = hasRooms ? (
@@ -215,7 +232,7 @@ function RoomsComponent() {
             ) : null}
 
             {!isPending
-              ? filteredRooms.map((room) => (
+              ? paginatedRooms.map((room) => (
                   <RoomCard
                     key={room.id}
                     room={room}
@@ -224,6 +241,16 @@ function RoomsComponent() {
                 ))
               : null}
           </section>
+
+          {!isPending && pageCount > 1 ? (
+            <PaginationControls
+              page={safePage}
+              pageSize={PAGE_SIZE}
+              total={filteredRooms.length}
+              pageCount={pageCount}
+              onPageChange={handlePageChange}
+            />
+          ) : null}
         </div>
       </div>
     </main>

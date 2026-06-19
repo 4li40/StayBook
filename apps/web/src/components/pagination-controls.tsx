@@ -31,8 +31,8 @@ export function PaginationControls({
   const isLastPage = page >= pageCount;
 
   return (
-    <section className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-      <p className="text-sm text-muted-foreground">
+    <section className="flex flex-wrap items-center justify-center gap-3 sm:justify-between">
+      <p className="whitespace-nowrap text-sm text-muted-foreground">
         Showing{" "}
         <span className="font-medium text-foreground tabular-nums">{start}</span>
         –
@@ -50,7 +50,7 @@ export function PaginationControls({
               }}
             />
           </PaginationItem>
-          <span className="text-sm tabular-nums px-1">
+          <span className="whitespace-nowrap text-sm tabular-nums px-1">
             Page {page} of {Math.max(pageCount, 1)}
           </span>
           <PaginationItem>
