@@ -24,8 +24,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BedDouble,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
   CalendarX,
+  History,
+  ListFilter,
+  Mail,
   RefreshCw,
+  UserRound,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -336,34 +343,41 @@ function RouteComponent() {
     ) || appliedFilters.page !== 1;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8">
-      <section className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-heading text-foreground tracking-tight text-balance">
-            Staff Reservations
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Welcome, {staffUser.name}. Monitor, filter, and cancel guest
-            reservations.
-          </p>
+    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-8 px-6 pb-24 pt-28">
+      <section className="relative overflow-hidden rounded-2xl bg-primary px-6 py-8 text-primary-foreground shadow-[0_18px_60px_rgba(4,22,39,0.16)] sm:px-8 md:py-10">
+        <div className="absolute -right-16 -top-24 size-64 rounded-full border border-white/10" />
+        <div className="absolute -right-8 -top-16 size-40 rounded-full border border-gold-container/20" />
+        <div className="relative flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="flex max-w-2xl flex-col gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-container">
+              Guest operations
+            </span>
+            <h1 className="font-heading text-4xl tracking-tight text-balance sm:text-5xl">
+              Reservations
+            </h1>
+            <p className="max-w-xl text-sm leading-6 text-primary-foreground/70 sm:text-base">
+              Welcome back, {staffUser.name}. Follow every stay from confirmation through departure, all in one calm view.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-fit border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            onClick={() => {
+              void roomsQuery.refetch();
+              void reservationsQuery.refetch();
+            }}
+            disabled={
+              isLoading ||
+              isLoadingRooms ||
+              roomsQuery.isFetching ||
+              reservationsQuery.isFetching
+            }
+          >
+            <RefreshCw data-icon="inline-start" />
+            Refresh
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            void roomsQuery.refetch();
-            void reservationsQuery.refetch();
-          }}
-          disabled={
-            isLoading ||
-            isLoadingRooms ||
-            roomsQuery.isFetching ||
-            reservationsQuery.isFetching
-          }
-        >
-          <RefreshCw data-icon="inline-start" />
-          Refresh
-        </Button>
       </section>
 
       {roomsError ? (
@@ -378,48 +392,83 @@ function RouteComponent() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="gap-1">
-            <CardDescription>Upcoming</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
-              {stateCounts.upcoming}
-            </CardTitle>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Reservation summary">
+        <Card className="border-0 shadow-[0_8px_28px_rgba(26,43,60,0.06)] ring-1 ring-foreground/5">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">
+                Upcoming
+              </CardDescription>
+              <CardTitle className="text-3xl tabular-nums">
+                {stateCounts.upcoming}
+              </CardTitle>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-full bg-gold-container text-on-gold-container">
+              <CalendarClock aria-hidden="true" />
+            </div>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="gap-1">
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
-              {stateCounts.active}
-            </CardTitle>
+        <Card className="border-0 shadow-[0_8px_28px_rgba(26,43,60,0.06)] ring-1 ring-foreground/5">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">
+                In house
+              </CardDescription>
+              <CardTitle className="text-3xl tabular-nums">
+                {stateCounts.active}
+              </CardTitle>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-full bg-tertiary-fixed text-on-tertiary-fixed">
+              <CalendarCheck aria-hidden="true" />
+            </div>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="gap-1">
-            <CardDescription>Past</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
-              {stateCounts.past}
-            </CardTitle>
+        <Card className="border-0 shadow-[0_8px_28px_rgba(26,43,60,0.06)] ring-1 ring-foreground/5">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">
+                Completed
+              </CardDescription>
+              <CardTitle className="text-3xl tabular-nums">
+                {stateCounts.past}
+              </CardTitle>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+              <History aria-hidden="true" />
+            </div>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="gap-1">
-            <CardDescription>Cancelled</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">
-              {stateCounts.cancelled}
-            </CardTitle>
+        <Card className="border-0 shadow-[0_8px_28px_rgba(26,43,60,0.06)] ring-1 ring-foreground/5">
+          <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription className="text-[11px] font-bold uppercase tracking-[0.14em]">
+                Cancelled
+              </CardDescription>
+              <CardTitle className="text-3xl tabular-nums">
+                {stateCounts.cancelled}
+              </CardTitle>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+              <CalendarX aria-hidden="true" />
+            </div>
           </CardHeader>
         </Card>
       </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-          <CardDescription>
-            Narrow reservations by room, status, operational state, or stay
-            date range.
-          </CardDescription>
+      <Card className="border-0 shadow-[0_8px_28px_rgba(26,43,60,0.05)] ring-1 ring-foreground/5">
+        <CardHeader className="border-b border-border/60 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-full bg-secondary text-primary">
+              <ListFilter aria-hidden="true" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <CardTitle className="text-lg">Find a reservation</CardTitle>
+              <CardDescription>
+                Narrow reservations by room, status, operational state, or
+                stay date range.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <form
@@ -550,9 +599,9 @@ function RouteComponent() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={isLoading}>
-                <RefreshCw data-icon="inline-start" />
-                Apply Filters
+              <Button type="submit" className="px-4" disabled={isLoading}>
+                <ListFilter data-icon="inline-start" />
+                Apply filters
               </Button>
               <Button
                 type="button"
@@ -568,9 +617,23 @@ function RouteComponent() {
       </Card>
 
       <section className="flex flex-col gap-4" aria-live="polite">
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold">
+              Stay ledger
+            </span>
+            <h2 className="font-heading text-2xl tracking-tight">Guest stays</h2>
+          </div>
+          {!isLoading ? (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              {pagination.total}{" "}
+              {pagination.total === 1 ? "reservation" : "reservations"}
+            </p>
+          ) : null}
+        </div>
         {isLoading
           ? Array.from({ length: 3 }).map((_, index) => (
-              <Card key={index}>
+              <Card key={index} className="border-0 ring-1 ring-foreground/5">
                 <CardHeader>
                   <Skeleton className="h-5 w-1/3" />
                   <Skeleton className="h-4 w-1/2" />
@@ -583,11 +646,13 @@ function RouteComponent() {
           : null}
 
         {showEmptyState ? (
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-border/60 bg-muted/30 p-10 text-center">
-            <CalendarX aria-hidden="true" className="size-10 text-muted-foreground" />
+          <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-card p-12 text-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-secondary">
+              <CalendarX aria-hidden="true" className="text-muted-foreground" />
+            </div>
             <div className="flex flex-col gap-1.5">
               <h2 className="font-heading text-lg text-foreground">
-                No Reservations Found
+                No reservations found
               </h2>
               <p className="text-sm text-muted-foreground">
                 {hasActiveFilters
@@ -600,16 +665,19 @@ function RouteComponent() {
 
         {!isLoading
           ? reservations.map((reservation) => (
-              <Card key={reservation.id}>
-                <CardHeader>
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
-                      <div className="flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted sm:w-40">
+              <Card
+                key={reservation.id}
+                className="border-0 shadow-[0_6px_24px_rgba(26,43,60,0.05)] ring-1 ring-foreground/5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(26,43,60,0.09)]"
+              >
+                <CardHeader className="pb-1">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                    <div className="flex min-w-0 flex-1 flex-col gap-5 sm:flex-row">
+                      <div className="relative flex aspect-[4/3] w-full shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted sm:w-48">
                         {reservation.room.primaryPhotoUrl ? (
                           <img
                             src={reservation.room.primaryPhotoUrl}
                             alt={reservation.room.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
                           />
                         ) : (
                           <BedDouble
@@ -618,14 +686,8 @@ function RouteComponent() {
                           />
                         )}
                       </div>
-                      <div className="flex min-w-0 flex-col gap-1.5">
-                        <CardTitle>{reservation.room.name}</CardTitle>
-                        <CardDescription className="capitalize">
-                          {reservation.room.type} ·{" "}
-                          {formatStayDate(reservation.checkInDate)} to{" "}
-                          {formatStayDate(reservation.checkOutDate)}
-                        </CardDescription>
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <div className="flex min-w-0 flex-1 flex-col gap-3 py-1">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge
                             variant={statusBadgeVariant(reservation.status)}
                             className="capitalize"
@@ -639,38 +701,83 @@ function RouteComponent() {
                             {reservation.state}
                           </Badge>
                         </div>
+                        <div className="flex flex-col gap-1">
+                          <CardDescription className="text-[10px] font-bold uppercase tracking-[0.14em] text-gold">
+                            {reservation.room.type}
+                          </CardDescription>
+                          <CardTitle className="text-2xl tracking-tight">{reservation.room.name}</CardTitle>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <CalendarDays aria-hidden="true" className="size-4" />
+                            {formatStayDate(reservation.checkInDate)}
+                          </span>
+                          <span aria-hidden="true" className="text-border">→</span>
+                          <span>{formatStayDate(reservation.checkOutDate)}</span>
+                        </div>
                       </div>
+                    </div>
+                    <div className="shrink-0 text-left md:text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">Stay total</p>
+                      <p className="font-heading text-2xl text-gold tabular-nums">
+                        {formatCents(reservation.totalPrice)}
+                      </p>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="grid gap-4 text-sm md:grid-cols-3">
-                  <div>
-                    <p className="mb-1 text-xs text-muted-foreground">Guest</p>
-                    <p className="truncate font-medium">
-                      {reservation.guest.name ?? "Unknown"}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {reservation.guest.email ?? "No email"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs text-muted-foreground">Total</p>
-                    <p className="font-medium tabular-nums">
-                      {formatCents(reservation.totalPrice)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs text-muted-foreground">
-                      Reserved
-                    </p>
-                    <p className="font-medium">
-                      {formatTimestamp(reservation.createdAt)}
-                    </p>
+                <CardContent className="flex flex-col gap-4 text-sm">
+                  <div className="grid gap-4 border-t border-border/60 pt-4 md:grid-cols-[1.4fr_1fr_1fr]">
+                    <div className="flex items-start gap-2.5">
+                      <UserRound
+                        aria-hidden="true"
+                        className="mt-0.5 size-4 text-muted-foreground"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                          Guest
+                        </p>
+                        <p className="truncate font-semibold">
+                          {reservation.guest.name ?? "Unknown"}
+                        </p>
+                        <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                          <Mail aria-hidden="true" className="size-3" />
+                          {reservation.guest.email ?? "No email"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CalendarClock
+                        aria-hidden="true"
+                        className="mt-0.5 size-4 text-muted-foreground"
+                      />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                          Booked
+                        </p>
+                        <p className="font-medium">
+                          {formatTimestamp(reservation.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <BedDouble
+                        aria-hidden="true"
+                        className="mt-0.5 size-4 text-muted-foreground"
+                      />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                          Reference
+                        </p>
+                        <p className="font-mono text-xs font-medium text-muted-foreground">
+                          {reservation.id.slice(0, 8).toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {reservation.status === "cancelled" ? (
-                    <div className="md:col-span-3">
-                      <p className="mb-1 text-xs text-muted-foreground">
+                    <div className="rounded-lg bg-destructive/5 p-3 text-destructive">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em]">
                         Cancellation
                       </p>
                       <p className="font-medium">
@@ -679,14 +786,14 @@ function RouteComponent() {
                           : "—"}
                       </p>
                       {reservation.cancellationReason ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-1 text-xs text-destructive/80">
                           “{reservation.cancellationReason}”
                         </p>
                       ) : null}
                     </div>
                   ) : null}
                 </CardContent>
-                <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <CardFooter className="flex flex-col gap-2 border-border/60 bg-secondary/40 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
                     variant="destructive"
