@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
+import Footer from "@/components/footer";
 import Header from "@/components/header";
 
 import "../index.css";
@@ -41,6 +42,7 @@ function RootComponent() {
         <div className="flex-1">
           <Outlet />
         </div>
+        <Footer />
       </div>
       <Toaster richColors />
       <TanStackRouterDevtools position="bottom-left" />

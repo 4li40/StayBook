@@ -1,7 +1,7 @@
 import { Button } from "@StayBook/ui/components/button";
 import { Input } from "@StayBook/ui/components/input";
 import { useForm } from "@tanstack/react-form";
-import { Search } from "lucide-react";
+import { CalendarDays, Search, Users } from "lucide-react";
 import z from "zod";
 
 import { calendarDateSchema, getNightCount } from "@/lib/dates";
@@ -39,101 +39,110 @@ export default function RoomsSearchForm({ defaultValues, onSubmit, submitDisable
   return (
     <form
       noValidate
-      className="w-full max-w-4xl flex flex-col md:flex-row items-stretch gap-2 md:gap-0 rounded-2xl md:rounded-full border border-ghost-border bg-card p-2 md:pl-6 md:pr-2 shadow-xs transition-all hover:shadow-[0_8px_30px_rgba(26,43,60,0.04)] focus-within:border-gold focus-within:ring-1 focus-within:ring-gold/30"
+      className="w-full rounded-xl border border-ghost-border bg-white/85 p-4 shadow-xl backdrop-blur-md"
       onSubmit={(e) => {
         e.preventDefault();
         form.handleSubmit();
       }}
     >
-      <form.Field name="checkInDate">
-        {(field) => (
-          <div className="flex flex-1 flex-col justify-center px-4 py-2 md:py-1 text-left">
-            <label htmlFor={field.name} className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase mb-0.5">
-              Check In
-            </label>
-            <Input
-              id={field.name}
-              name={field.name}
-              type="date"
-              autoComplete="off"
-              className="h-auto border-0 p-0 text-foreground bg-transparent focus-visible:ring-0 focus-visible:border-transparent focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-muted-foreground/50 md:text-sm font-medium w-full cursor-pointer"
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
-              aria-invalid={field.state.meta.errors.length > 0}
-            />
-            {field.state.meta.errors.map((error) => (
-              <p key={error?.message} className="text-[10px] text-destructive mt-0.5 leading-none">
-                {error?.message}
-              </p>
-            ))}
-          </div>
-        )}
-      </form.Field>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <form.Field name="checkInDate">
+          {(field) => (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={field.name} className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase ml-1">
+                Check In
+              </label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="date"
+                  autoComplete="off"
+                  className="h-11 w-full pl-10 pr-3 bg-background border-input rounded-lg text-sm font-medium focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold/30"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                />
+              </div>
+              {field.state.meta.errors.map((error) => (
+                <p key={error?.message} className="text-[10px] text-destructive leading-none">
+                  {error?.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </form.Field>
 
-      <div className="hidden md:block w-px bg-border/60 my-2" />
+        <form.Field name="checkOutDate">
+          {(field) => (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={field.name} className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase ml-1">
+                Check Out
+              </label>
+              <div className="relative">
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="date"
+                  autoComplete="off"
+                  className="h-11 w-full pl-10 pr-3 bg-background border-input rounded-lg text-sm font-medium focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold/30"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                />
+              </div>
+              {field.state.meta.errors.map((error) => (
+                <p key={error?.message} className="text-[10px] text-destructive leading-none">
+                  {error?.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </form.Field>
 
-      <form.Field name="checkOutDate">
-        {(field) => (
-          <div className="flex flex-1 flex-col justify-center px-4 py-2 md:py-1 text-left">
-            <label htmlFor={field.name} className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase mb-0.5">
-              Check Out
-            </label>
-            <Input
-              id={field.name}
-              name={field.name}
-              type="date"
-              autoComplete="off"
-              className="h-auto border-0 p-0 text-foreground bg-transparent focus-visible:ring-0 focus-visible:border-transparent focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-muted-foreground/50 md:text-sm font-medium w-full cursor-pointer"
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
-              aria-invalid={field.state.meta.errors.length > 0}
-            />
-            {field.state.meta.errors.map((error) => (
-              <p key={error?.message} className="text-[10px] text-destructive mt-0.5 leading-none">
-                {error?.message}
-              </p>
-            ))}
-          </div>
-        )}
-      </form.Field>
+        <form.Field name="guests">
+          {(field) => (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={field.name} className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase ml-1">
+                Guests
+              </label>
+              <div className="relative">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="number"
+                  min="1"
+                  max="20"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="h-11 w-full pl-10 pr-3 bg-background border-input rounded-lg text-sm font-medium focus-visible:border-gold focus-visible:ring-1 focus-visible:ring-gold/30"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  aria-invalid={field.state.meta.errors.length > 0}
+                />
+              </div>
+              {field.state.meta.errors.map((error) => (
+                <p key={error?.message} className="text-[10px] text-destructive leading-none">
+                  {error?.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </form.Field>
 
-      <div className="hidden md:block w-px bg-border/60 my-2" />
-
-      <form.Field name="guests">
-        {(field) => (
-          <div className="flex md:w-[160px] flex-col justify-center px-4 py-2 md:py-1 text-left">
-            <label htmlFor={field.name} className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase mb-0.5">
-              Guests
-            </label>
-            <Input
-              id={field.name}
-              name={field.name}
-              type="number"
-              min="1"
-              max="20"
-              inputMode="numeric"
-              autoComplete="off"
-              className="h-auto border-0 p-0 text-foreground bg-transparent focus-visible:ring-0 focus-visible:border-transparent focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-muted-foreground/50 md:text-sm font-medium w-full"
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
-              aria-invalid={field.state.meta.errors.length > 0}
-            />
-            {field.state.meta.errors.map((error) => (
-              <p key={error?.message} className="text-[10px] text-destructive mt-0.5 leading-none">
-                {error?.message}
-              </p>
-            ))}
-          </div>
-        )}
-      </form.Field>
-
-      <div className="flex items-center justify-center p-1">
-        <Button type="submit" className="h-12 w-full md:w-12 md:rounded-full bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-2 md:p-0 transition-transform active:scale-95 cursor-pointer font-sans" disabled={submitDisabled}>
+        <Button
+          type="submit"
+          disabled={submitDisabled}
+          className="h-11 w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+        >
           <Search className="h-4 w-4" />
-          <span className="md:hidden font-medium text-sm">Search Rooms</span>
+          <span>Search Rooms</span>
         </Button>
       </div>
     </form>
