@@ -20,6 +20,7 @@ import {
 } from "@StayBook/ui/components/select";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { Textarea } from "@StayBook/ui/components/textarea";
+import { useForm } from "@tanstack/react-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -37,8 +38,9 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import z from "zod";
 
 import {
   ApiClientError,
@@ -74,11 +76,60 @@ export const Route = createFileRoute("/_staff/staff")({
   component: RouteComponent,
 });
 
-type PhotoFormState = {
-  url: string;
-  altText: string;
-  isPrimary: boolean;
-};
+const photoFormSchema = z.object({
+  url: z
+    .string()
+    .refine(
+      (value) => value.trim() === "" || z.url().safeParse(value).success,
+      "Enter a valid URL",
+    ),
+  altText: z
+    .string()
+    .max(200, "Alt text must be 200 characters or fewer"),
+  isPrimary: z.boolean(),
+});
+
+const roomFormSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be 100 characters or fewer"),
+  type: z
+    .string()
+    .min(2, "Type must be at least 2 characters")
+    .max(50, "Type must be 50 characters or fewer"),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(2000, "Description must be 2000 characters or fewer"),
+  maxGuests: z
+    .string()
+    .refine((value) => value.trim() !== "", "Capacity is required")
+    .refine((value) => /^\d+$/.test(value.trim()), "Capacity must be a whole number")
+    .refine(
+      (value) => {
+        const num = Number(value);
+        return num >= 1 && num <= 20;
+      },
+      "Capacity must be between 1 and 20",
+    ),
+  nightlyPrice: z
+    .string()
+    .refine((value) => value.trim() !== "", "Nightly price is required")
+    .refine((value) => !Number.isNaN(Number(value.replace(",", "."))), "Nightly price must be a number")
+    .refine(
+      (value) => Number(value.replace(",", ".")) > 0,
+      "Nightly price must be greater than 0",
+    ),
+  amenityIds: z.array(z.string()),
+  photos: z
+    .array(photoFormSchema)
+    .min(1, "Add at least one photo")
+    .refine(
+      (photos) => photos.some((p) => p.url.trim().length > 0),
+      "Add at least one photo with a valid URL",
+    ),
+});
 
 type RoomFormState = {
   name: string;
@@ -87,10 +138,10 @@ type RoomFormState = {
   maxGuests: string;
   nightlyPrice: string;
   amenityIds: string[];
-  photos: PhotoFormState[];
+  photos: { url: string; altText: string; isPrimary: boolean }[];
 };
 
-type FieldErrors = Partial<Record<keyof RoomFormState | "form", string>>;
+type FieldErrors = Partial<Record<keyof RoomFormState, string>>;
 
 const emptyRoomForm: RoomFormState = {
   name: "",
@@ -134,6 +185,16 @@ function toPayload(form: RoomFormState): StaffRoomInput {
       }))
       .filter((photo) => photo.url.length > 0),
   };
+}
+
+function fieldErrorMessage(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message: unknown }).message;
+    if (typeof message === "string") {
+      return message;
+    }
+  }
+  return undefined;
 }
 
 function collectFieldErrors(error: unknown): FieldErrors {
@@ -188,12 +249,11 @@ function toRoomFilters(form: RoomFilterForm): StaffRoomFilters {
 function RouteComponent() {
   const { session } = Route.useRouteContext();
   const queryClient = useQueryClient();
-  const [isSaving, setIsSaving] = useState(false);
   const [actionRoomId, setActionRoomId] = useState<string | null>(null);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [form, setForm] = useState<RoomFormState>(emptyRoomForm);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [serverFieldErrors, setServerFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [filterForm, setFilterForm] = useState<RoomFilterForm>(emptyRoomFilterForm);
   const [appliedFilters, setAppliedFilters] = useState<StaffRoomFilters>({});
@@ -229,6 +289,51 @@ function RouteComponent() {
       appliedFilters.search,
   );
 
+  const form = useForm({
+    defaultValues: emptyRoomForm,
+    validators: {
+      onSubmit: roomFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setServerFieldErrors({});
+      setFormError(null);
+
+      try {
+        const payload = toPayload(value);
+        const path = editingRoomId
+          ? `/api/staff/rooms/${editingRoomId}`
+          : "/api/staff/rooms";
+        const method = editingRoomId ? "PATCH" : "POST";
+
+        await apiRequest<StaffRoomResponse>(path, {
+          method,
+          body: JSON.stringify(payload),
+        });
+
+        toast.success(editingRoomId ? "Room updated." : "Room created.");
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() }),
+          queryClient.invalidateQueries({ queryKey: roomKeys.all }),
+        ]);
+        setIsFormOpen(false);
+        setEditingRoomId(null);
+      } catch (error) {
+        setServerFieldErrors(collectFieldErrors(error));
+        setFormError(getErrorMessage(error));
+        toast.error(getErrorMessage(error));
+      }
+    },
+  });
+
+  useEffect(() => {
+    if (!isFormOpen) {
+      return;
+    }
+    form.reset(editingRoom ? roomToForm(editingRoom) : emptyRoomForm);
+    setServerFieldErrors({});
+    setFormError(null);
+  }, [isFormOpen, editingRoomId, editingRoom, form]);
+
   function updateFilterField<Key extends keyof RoomFilterForm>(
     key: Key,
     value: RoomFilterForm[Key],
@@ -252,119 +357,24 @@ function RouteComponent() {
     setAppliedFilters({});
   }
 
-  function updateForm<Key extends keyof RoomFormState>(
-    key: Key,
-    value: RoomFormState[Key],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }));
-    setFieldErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
-  }
-
   function startCreate() {
     setEditingRoomId(null);
-    setForm(emptyRoomForm);
-    setFieldErrors({});
     setIsFormOpen(true);
   }
 
   function closeForm() {
-    if (isSaving) {
+    if (form.state.isSubmitting) {
       return;
     }
-
     setIsFormOpen(false);
     setEditingRoomId(null);
-    setForm(emptyRoomForm);
-    setFieldErrors({});
+    setServerFieldErrors({});
+    setFormError(null);
   }
 
   function startEdit(room: StaffRoom) {
     setEditingRoomId(room.id);
-    setForm(roomToForm(room));
-    setFieldErrors({});
     setIsFormOpen(true);
-  }
-
-  function toggleAmenity(amenityId: string, checked: boolean) {
-    updateForm(
-      "amenityIds",
-      checked
-        ? [...form.amenityIds, amenityId]
-        : form.amenityIds.filter((id) => id !== amenityId),
-    );
-  }
-
-  function addPhoto() {
-    updateForm("photos", [
-      ...form.photos,
-      {
-        url: "",
-        altText: "",
-        isPrimary: form.photos.length === 0,
-      },
-    ]);
-  }
-
-  function updatePhoto(index: number, nextPhoto: Partial<PhotoFormState>) {
-    updateForm(
-      "photos",
-      form.photos.map((photo, photoIndex) =>
-        photoIndex === index ? { ...photo, ...nextPhoto } : photo,
-      ),
-    );
-  }
-
-  function removePhoto(index: number) {
-    const nextPhotos = form.photos.filter((_, photoIndex) => photoIndex !== index);
-    if (nextPhotos.length > 0 && !nextPhotos.some((photo) => photo.isPrimary)) {
-      nextPhotos[0] = { ...nextPhotos[0], isPrimary: true };
-    }
-    updateForm("photos", nextPhotos);
-  }
-
-  function setPrimaryPhoto(index: number) {
-    updateForm(
-      "photos",
-      form.photos.map((photo, photoIndex) => ({
-        ...photo,
-        isPrimary: photoIndex === index,
-      })),
-    );
-  }
-
-  async function saveRoom() {
-    setIsSaving(true);
-    setFieldErrors({});
-
-    try {
-      const payload = toPayload(form);
-      const path = editingRoomId
-        ? `/api/staff/rooms/${editingRoomId}`
-        : "/api/staff/rooms";
-      const method = editingRoomId ? "PATCH" : "POST";
-
-      await apiRequest<StaffRoomResponse>(path, {
-        method,
-        body: JSON.stringify(payload),
-      });
-
-      toast.success(editingRoomId ? "Room updated." : "Room created.");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: staffRoomKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: roomKeys.all }),
-      ]);
-      setIsFormOpen(false);
-      setEditingRoomId(null);
-      setForm(emptyRoomForm);
-    } catch (error) {
-      setFieldErrors({
-        ...collectFieldErrors(error),
-        form: getErrorMessage(error),
-      });
-      toast.error(getErrorMessage(error));
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function setRoomActive(room: StaffRoom, active: boolean) {
@@ -623,7 +633,7 @@ function RouteComponent() {
 
       {isFormOpen ? (
         <div
-          className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="room-form-title"
@@ -633,7 +643,7 @@ function RouteComponent() {
             }
           }}
         >
-          <Card className="max-h-[calc(100vh-4rem)] w-full max-w-2xl overflow-hidden shadow-lg">
+          <Card className="max-h-[calc(100vh-4rem)] w-full max-w-2xl shadow-lg">
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-1.5">
@@ -651,214 +661,384 @@ function RouteComponent() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={closeForm}
-                  disabled={isSaving}
+                  disabled={form.state.isSubmitting}
                   aria-label="Close room form"
                 >
                   <X />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="max-h-[calc(100vh-11rem)] overflow-y-auto">
+            <CardContent className="min-h-0 flex-1 overflow-y-auto">
             <form
+              noValidate
               className="flex flex-col gap-5"
               onSubmit={(event) => {
                 event.preventDefault();
-                saveRoom();
+                event.stopPropagation();
+                form.handleSubmit();
               }}
             >
-              {fieldErrors.form ? (
+              {formError ? (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                  {fieldErrors.form}
+                  {formError}
                 </div>
               ) : null}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="room-name">Name</Label>
-                  <Input
-                    id="room-name"
-                    value={form.name}
-                    onChange={(event) => updateForm("name", event.target.value)}
-                    aria-invalid={Boolean(fieldErrors.name)}
-                    placeholder="Deluxe King Suite"
-                  />
-                  {fieldErrors.name ? (
-                    <p className="text-xs text-destructive">{fieldErrors.name}</p>
-                  ) : null}
-                </div>
+                <form.Field name="name">
+                  {(field) => {
+                    const serverError = serverFieldErrors.name;
+                    const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="room-name">Name</Label>
+                        <Input
+                          id="room-name"
+                          name={field.name}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          aria-invalid={hasError}
+                          placeholder="Deluxe King Suite"
+                        />
+                        {field.state.meta.errors.map((error) => (
+                          <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                            {error ? fieldErrorMessage(error) : undefined}
+                          </p>
+                        ))}
+                        {serverError ? (
+                          <p className="text-xs text-destructive">{serverError}</p>
+                        ) : null}
+                      </div>
+                    );
+                  }}
+                </form.Field>
 
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="room-type">Type</Label>
-                  <Input
-                    id="room-type"
-                    value={form.type}
-                    onChange={(event) => updateForm("type", event.target.value)}
-                    aria-invalid={Boolean(fieldErrors.type)}
-                    placeholder="suite"
-                  />
-                  {fieldErrors.type ? (
-                    <p className="text-xs text-destructive">{fieldErrors.type}</p>
-                  ) : null}
-                </div>
+                <form.Field name="type">
+                  {(field) => {
+                    const serverError = serverFieldErrors.type;
+                    const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="room-type">Type</Label>
+                        <Input
+                          id="room-type"
+                          name={field.name}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          aria-invalid={hasError}
+                          placeholder="suite"
+                        />
+                        {field.state.meta.errors.map((error) => (
+                          <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                            {error ? fieldErrorMessage(error) : undefined}
+                          </p>
+                        ))}
+                        {serverError ? (
+                          <p className="text-xs text-destructive">{serverError}</p>
+                        ) : null}
+                      </div>
+                    );
+                  }}
+                </form.Field>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="room-description">Description</Label>
-                <Textarea
-                  id="room-description"
-                  value={form.description}
-                  onChange={(event) => updateForm("description", event.target.value)}
-                  aria-invalid={Boolean(fieldErrors.description)}
-                  placeholder="Room highlights and guest-facing details"
-                />
-                {fieldErrors.description ? (
-                  <p className="text-xs text-destructive">{fieldErrors.description}</p>
-                ) : null}
-              </div>
+              <form.Field name="description">
+                {(field) => {
+                  const serverError = serverFieldErrors.description;
+                  const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="room-description">Description</Label>
+                      <Textarea
+                        id="room-description"
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) => field.handleChange(event.target.value)}
+                        aria-invalid={hasError}
+                        placeholder="Room highlights and guest-facing details"
+                      />
+                      {field.state.meta.errors.map((error) => (
+                        <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                          {error ? fieldErrorMessage(error) : undefined}
+                        </p>
+                      ))}
+                      {serverError ? (
+                        <p className="text-xs text-destructive">{serverError}</p>
+                      ) : null}
+                    </div>
+                  );
+                }}
+              </form.Field>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="room-capacity">Capacity</Label>
-                  <Input
-                    id="room-capacity"
-                    type="number"
-                    min="1"
-                    max="20"
-                    inputMode="numeric"
-                    value={form.maxGuests}
-                    onChange={(event) => updateForm("maxGuests", event.target.value)}
-                    aria-invalid={Boolean(fieldErrors.maxGuests)}
-                  />
-                  {fieldErrors.maxGuests ? (
-                    <p className="text-xs text-destructive">{fieldErrors.maxGuests}</p>
-                  ) : null}
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="room-price">Nightly Price</Label>
-                  <Input
-                    id="room-price"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={form.nightlyPrice}
-                    onChange={(event) => updateForm("nightlyPrice", event.target.value)}
-                    aria-invalid={Boolean(fieldErrors.nightlyPrice)}
-                    placeholder="199.00"
-                  />
-                  {fieldErrors.nightlyPrice ? (
-                    <p className="text-xs text-destructive">{fieldErrors.nightlyPrice}</p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label>Amenities</Label>
-                  <span className="text-xs text-muted-foreground">
-                    {form.amenityIds.length} selected
-                  </span>
-                </div>
-                {amenities.length > 0 ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {amenities.map((amenity) => {
-                      const checked = form.amenityIds.includes(amenity.id);
-
-                      return (
-                        <label
-                          key={amenity.id}
-                          className="flex min-h-8 items-center gap-2 rounded-lg border border-border/70 px-2.5 py-1.5 text-sm"
-                        >
-                          <Checkbox
-                            checked={checked}
-                            onCheckedChange={(value) => toggleAmenity(amenity.id, value === true)}
-                          />
-                          <span className="truncate">{amenity.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Seed amenities before assigning them to rooms.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <Label>Photos</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addPhoto}>
-                    <Plus data-icon="inline-start" />
-                    Add Photo
-                  </Button>
-                </div>
-
-                {form.photos.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">
-                    Add at least one URL to show this room visually in staff tools and guest search.
-                  </p>
-                ) : null}
-
-                {form.photos.map((photo, index) => (
-                  <div key={index} className="flex flex-col gap-2 rounded-lg border border-border/70 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={photo.isPrimary}
-                          onCheckedChange={() => setPrimaryPhoto(index)}
+                <form.Field name="maxGuests">
+                  {(field) => {
+                    const serverError = serverFieldErrors.maxGuests;
+                    const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="room-capacity">Capacity</Label>
+                        <Input
+                          id="room-capacity"
+                          name={field.name}
+                          type="number"
+                          min="1"
+                          max="20"
+                          inputMode="numeric"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          aria-invalid={hasError}
                         />
-                        Primary
-                      </label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removePhoto(index)}
-                        aria-label="Remove photo"
-                      >
-                        <X />
-                      </Button>
-                    </div>
-                    {photo.url.trim() ? (
-                      <div className="aspect-[16/9] overflow-hidden rounded-lg bg-muted">
-                        <img
-                          src={photo.url.trim()}
-                          alt={photo.altText.trim() || "Room photo preview"}
-                          className="h-full w-full object-cover"
-                        />
+                        {field.state.meta.errors.map((error) => (
+                          <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                            {error ? fieldErrorMessage(error) : undefined}
+                          </p>
+                        ))}
+                        {serverError ? (
+                          <p className="text-xs text-destructive">{serverError}</p>
+                        ) : null}
                       </div>
-                    ) : null}
-                    <Input
-                      value={photo.url}
-                      onChange={(event) => updatePhoto(index, { url: event.target.value })}
-                      placeholder="https://example.com/room.jpg"
-                      aria-invalid={Boolean(fieldErrors.photos)}
-                    />
-                    <Input
-                      value={photo.altText}
-                      onChange={(event) => updatePhoto(index, { altText: event.target.value })}
-                      placeholder="Alt text"
-                    />
+                    );
+                  }}
+                </form.Field>
+
+                <form.Field name="nightlyPrice">
+                  {(field) => {
+                    const serverError = serverFieldErrors.nightlyPrice;
+                    const hasError = field.state.meta.errors.length > 0 || Boolean(serverError);
+                    return (
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="room-price">Nightly Price</Label>
+                        <Input
+                          id="room-price"
+                          name={field.name}
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                          aria-invalid={hasError}
+                          placeholder="199.00"
+                        />
+                        {field.state.meta.errors.map((error) => (
+                          <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                            {error ? fieldErrorMessage(error) : undefined}
+                          </p>
+                        ))}
+                        {serverError ? (
+                          <p className="text-xs text-destructive">{serverError}</p>
+                        ) : null}
+                      </div>
+                    );
+                  }}
+                </form.Field>
+              </div>
+
+              <form.Field name="amenityIds">
+                {(field) => {
+                  const serverError = serverFieldErrors.amenityIds;
+                  const value = field.state.value;
+                  const toggle = (amenityId: string, checked: boolean) => {
+                    field.handleChange(
+                      checked
+                        ? [...value, amenityId]
+                        : value.filter((id) => id !== amenityId),
+                    );
+                  };
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>Amenities</Label>
+                        <span className="text-xs text-muted-foreground">
+                          {value.length} selected
+                        </span>
+                      </div>
+                      {amenities.length > 0 ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {amenities.map((amenity) => {
+                            const checked = value.includes(amenity.id);
+                            return (
+                              <label
+                                key={amenity.id}
+                                className="flex min-h-8 items-center gap-2 rounded-lg border border-border/70 px-2.5 py-1.5 text-sm"
+                              >
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={(val) => toggle(amenity.id, val === true)}
+                                />
+                                <span className="truncate">{amenity.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Seed amenities before assigning them to rooms.
+                        </p>
+                      )}
+                      {field.state.meta.errors.map((error) => (
+                        <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                          {error ? fieldErrorMessage(error) : undefined}
+                        </p>
+                      ))}
+                      {serverError ? (
+                        <p className="text-xs text-destructive">{serverError}</p>
+                      ) : null}
+                    </div>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="photos" mode="array">
+                {(field) => {
+                  const value = field.state.value;
+                  const serverError = serverFieldErrors.photos;
+                  const addPhoto = () => {
+                    field.pushValue({
+                      url: "",
+                      altText: "",
+                      isPrimary: value.length === 0,
+                    });
+                  };
+                  const removePhoto = (index: number) => {
+                    const nextPhotos = value.filter((_, i) => i !== index);
+                    if (nextPhotos.length > 0 && !nextPhotos.some((p) => p.isPrimary)) {
+                      nextPhotos[0] = { ...nextPhotos[0], isPrimary: true };
+                    }
+                    field.handleChange(nextPhotos);
+                  };
+                  const setPrimaryPhoto = (index: number) => {
+                    field.handleChange(
+                      value.map((p, i) => ({ ...p, isPrimary: i === index })),
+                    );
+                  };
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>Photos</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addPhoto}>
+                          <Plus data-icon="inline-start" />
+                          Add Photo
+                        </Button>
+                      </div>
+
+                      {value.length === 0 ? (
+                        <p className="rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">
+                          Add at least one URL to show this room visually in staff tools and guest search.
+                        </p>
+                      ) : null}
+
+                      {value.map((photo, index) => (
+                        <div key={index} className="flex flex-col gap-2 rounded-lg border border-border/70 p-3">
+                          <form.Field name={`photos[${index}].isPrimary`}>
+                            {(primaryField) => (
+                              <div className="flex items-center justify-between gap-2">
+                                <label className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={primaryField.state.value}
+                                    onCheckedChange={() => {
+                                      if (!primaryField.state.value) {
+                                        setPrimaryPhoto(index);
+                                      }
+                                    }}
+                                  />
+                                  Primary
+                                </label>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => removePhoto(index)}
+                                  aria-label="Remove photo"
+                                >
+                                  <X />
+                                </Button>
+                              </div>
+                            )}
+                          </form.Field>
+                          {photo.url.trim() ? (
+                            <div className="aspect-[16/9] overflow-hidden rounded-lg bg-muted">
+                              <img
+                                src={photo.url.trim()}
+                                alt={photo.altText.trim() || "Room photo preview"}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ) : null}
+                          <form.Field name={`photos[${index}].url`}>
+                            {(urlField) => (
+                              <div className="flex flex-col gap-1">
+                                <Input
+                                  value={urlField.state.value}
+                                  onChange={(event) => urlField.handleChange(event.target.value)}
+                                  onBlur={urlField.handleBlur}
+                                  placeholder="https://example.com/room.jpg"
+                                  aria-invalid={urlField.state.meta.errors.length > 0}
+                                />
+                                {urlField.state.meta.errors.map((error) => (
+                                  <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                                    {error ? fieldErrorMessage(error) : undefined}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </form.Field>
+                          <form.Field name={`photos[${index}].altText`}>
+                            {(altField) => (
+                              <Input
+                                value={altField.state.value}
+                                onChange={(event) => altField.handleChange(event.target.value)}
+                                onBlur={altField.handleBlur}
+                                placeholder="Alt text"
+                              />
+                            )}
+                          </form.Field>
+                        </div>
+                      ))}
+
+                      {field.state.meta.errors.map((error) => (
+                        <p key={error ? fieldErrorMessage(error) : undefined} className="text-xs text-destructive">
+                          {error ? fieldErrorMessage(error) : undefined}
+                        </p>
+                      ))}
+                      {serverError ? (
+                        <p className="text-xs text-destructive">{serverError}</p>
+                      ) : null}
+                    </div>
+                  );
+                }}
+              </form.Field>
+
+              <form.Subscribe
+                selector={(state) => ({
+                  canSubmit: state.canSubmit,
+                  isSubmitting: state.isSubmitting,
+                })}
+              >
+                {({ canSubmit, isSubmitting }) => (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button type="submit" disabled={!canSubmit || isSubmitting}>
+                      <Save data-icon="inline-start" />
+                      {isSubmitting ? "Saving..." : editingRoom ? "Save Room" : "Create Room"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={closeForm}
+                      disabled={isSubmitting}
+                    >
+                      <X data-icon="inline-start" />
+                      {editingRoom ? "Cancel Edit" : "Cancel"}
+                    </Button>
                   </div>
-                ))}
-
-                {fieldErrors.photos ? (
-                  <p className="text-xs text-destructive">{fieldErrors.photos}</p>
-                ) : null}
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button type="submit" disabled={isSaving}>
-                  <Save data-icon="inline-start" />
-                  {isSaving ? "Saving..." : editingRoom ? "Save Room" : "Create Room"}
-                </Button>
-                <Button type="button" variant="outline" onClick={closeForm} disabled={isSaving}>
-                  <X data-icon="inline-start" />
-                  {editingRoom ? "Cancel Edit" : "Cancel"}
-                </Button>
-              </div>
+                )}
+              </form.Subscribe>
             </form>
             </CardContent>
           </Card>
