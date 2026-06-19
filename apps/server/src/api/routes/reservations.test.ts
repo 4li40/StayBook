@@ -144,6 +144,7 @@ describe("POST /api/reservations", () => {
       ],
       [reservationRow()],
     ] as never);
+    mockedExecute.mockResolvedValueOnce(mockResult([reservationListRow()]));
 
     const res = await request(app).post("/api/reservations").send({
       roomId: ROOM_ID,
@@ -159,6 +160,15 @@ describe("POST /api/reservations", () => {
       guestId: GUEST_ID,
       totalPrice: 50000,
       status: "confirmed",
+      state: "upcoming",
+      room: expect.objectContaining({
+        id: ROOM_ID,
+        name: "Deluxe Suite",
+        type: "suite",
+        maxGuests: 2,
+        nightlyPrice: 25000,
+        primaryPhotoUrl: null,
+      }),
     });
   });
 
@@ -228,6 +238,9 @@ describe("POST /api/reservations", () => {
       ],
       [reservationRow({ totalPrice: 50000 })],
     ] as never);
+    mockedExecute.mockResolvedValueOnce(
+      mockResult([reservationListRow({ totalPrice: 50000 })]),
+    );
 
     const res = await request(app).post("/api/reservations").send({
       roomId: ROOM_ID,

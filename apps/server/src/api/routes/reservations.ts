@@ -70,19 +70,103 @@ export const reservationsRouter = Router();
 
 reservationsRouter.use(requireSession, requireGuest);
 
+async function fetchGuestReservationWithRoom(
+  reservationId: string,
+  guestId: string,
+) {
+  const today = todayUtcDate();
+  const result = await db.execute<ReservationListRow>(sql`
+    select
+      reservation.id,
+      reservation.room_id as "roomId",
+      reservation.guest_id as "guestId",
+      reservation.check_in_date::text as "checkInDate",
+      reservation.check_out_date::text as "checkOutDate",
+      reservation.total_price as "totalPrice",
+      reservation.status,
+      reservation.cancelled_at::text as "cancelledAt",
+      reservation.cancelled_by_user_id as "cancelledByUserId",
+      reservation.cancellation_reason as "cancellationReason",
+      reservation.created_at::text as "createdAt",
+      reservation.updated_at::text as "updatedAt",
+      room.name as "roomName",
+      room.type as "roomType",
+      room.max_guests as "roomMaxGuests",
+      room.nightly_price as "roomNightlyPrice",
+      primary_photo.url as "roomPrimaryPhotoUrl"
+    from reservations reservation
+    inner join rooms room
+      on room.id = reservation.room_id
+    left join room_photos primary_photo
+      on primary_photo.room_id = room.id
+      and primary_photo.is_primary = true
+    where reservation.id = ${reservationId}::uuid
+      and reservation.guest_id = ${guestId}
+    limit 1
+  `);
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return mapReservationListRow(row, today);
+}
+
+function mapReservationListRow(row: ReservationListRow, today: string) {
+  return {
+    id: row.id,
+    roomId: row.roomId,
+    guestId: row.guestId,
+    checkInDate: row.checkInDate,
+    checkOutDate: row.checkOutDate,
+    totalPrice: row.totalPrice,
+    status: row.status,
+    state: classifyReservationState(
+      row.status,
+      row.checkInDate,
+      row.checkOutDate,
+      today,
+    ),
+    cancelledAt: row.cancelledAt,
+    cancelledByUserId: row.cancelledByUserId,
+    cancellationReason: row.cancellationReason,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    room: {
+      id: row.roomId,
+      name: row.roomName,
+      type: row.roomType,
+      maxGuests: row.roomMaxGuests,
+      nightlyPrice: row.roomNightlyPrice,
+      primaryPhotoUrl: row.roomPrimaryPhotoUrl,
+    },
+  };
+}
+
 reservationsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
     const user = getAuthenticatedUser(req);
     const body = createReservationBodySchema.parse(req.body);
 
-    const reservation = await createBooking({
+    const created = await createBooking({
       roomId: body.roomId,
       guestId: user.id,
       checkInDate: body.checkInDate,
       checkOutDate: body.checkOutDate,
       guestCount: body.guestCount,
     });
+
+    const reservation = await fetchGuestReservationWithRoom(
+      created.id,
+      user.id,
+    );
+    if (!reservation) {
+      throw new ApiError(
+        404,
+        "NOT_FOUND",
+        "Reservation was not found.",
+      );
+    }
 
     sendData(res, { reservation }, 201);
   }),
@@ -142,34 +226,9 @@ reservationsRouter.get(
     `);
 
     const total = Number(countResult.rows[0]?.total ?? 0);
-    const reservations = result.rows.map((row) => ({
-      id: row.id,
-      roomId: row.roomId,
-      guestId: row.guestId,
-      checkInDate: row.checkInDate,
-      checkOutDate: row.checkOutDate,
-      totalPrice: row.totalPrice,
-      status: row.status,
-      state: classifyReservationState(
-        row.status,
-        row.checkInDate,
-        row.checkOutDate,
-        today,
-      ),
-      cancelledAt: row.cancelledAt,
-      cancelledByUserId: row.cancelledByUserId,
-      cancellationReason: row.cancellationReason,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      room: {
-        id: row.roomId,
-        name: row.roomName,
-        type: row.roomType,
-        maxGuests: row.roomMaxGuests,
-        nightlyPrice: row.roomNightlyPrice,
-        primaryPhotoUrl: row.roomPrimaryPhotoUrl,
-      },
-    }));
+    const reservations = result.rows.map((row) =>
+      mapReservationListRow(row, today),
+    );
 
     sendData(res, {
       reservations,
@@ -188,73 +247,16 @@ reservationsRouter.get(
   asyncHandler(async (req, res) => {
     const user = getAuthenticatedUser(req);
     const params = reservationParamsSchema.parse(req.params);
-    const today = todayUtcDate();
 
-    const result = await db.execute<ReservationListRow>(sql`
-      select
-        reservation.id,
-        reservation.room_id as "roomId",
-        reservation.guest_id as "guestId",
-        reservation.check_in_date::text as "checkInDate",
-        reservation.check_out_date::text as "checkOutDate",
-        reservation.total_price as "totalPrice",
-        reservation.status,
-        reservation.cancelled_at::text as "cancelledAt",
-        reservation.cancelled_by_user_id as "cancelledByUserId",
-        reservation.cancellation_reason as "cancellationReason",
-        reservation.created_at::text as "createdAt",
-        reservation.updated_at::text as "updatedAt",
-        room.name as "roomName",
-        room.type as "roomType",
-        room.max_guests as "roomMaxGuests",
-        room.nightly_price as "roomNightlyPrice",
-        primary_photo.url as "roomPrimaryPhotoUrl"
-      from reservations reservation
-      inner join rooms room
-        on room.id = reservation.room_id
-      left join room_photos primary_photo
-        on primary_photo.room_id = room.id
-        and primary_photo.is_primary = true
-      where reservation.id = ${params.reservationId}::uuid
-        and reservation.guest_id = ${user.id}
-      limit 1
-    `);
-
-    const row = result.rows[0];
-    if (!row) {
+    const reservation = await fetchGuestReservationWithRoom(
+      params.reservationId,
+      user.id,
+    );
+    if (!reservation) {
       throw new ApiError(404, "NOT_FOUND", "Reservation was not found.");
     }
 
-    sendData(res, {
-      reservation: {
-        id: row.id,
-        roomId: row.roomId,
-        guestId: row.guestId,
-        checkInDate: row.checkInDate,
-        checkOutDate: row.checkOutDate,
-        totalPrice: row.totalPrice,
-        status: row.status,
-        state: classifyReservationState(
-          row.status,
-          row.checkInDate,
-          row.checkOutDate,
-          today,
-        ),
-        cancelledAt: row.cancelledAt,
-        cancelledByUserId: row.cancelledByUserId,
-        cancellationReason: row.cancellationReason,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        room: {
-          id: row.roomId,
-          name: row.roomName,
-          type: row.roomType,
-          maxGuests: row.roomMaxGuests,
-          nightlyPrice: row.roomNightlyPrice,
-          primaryPhotoUrl: row.roomPrimaryPhotoUrl,
-        },
-      },
-    });
+    sendData(res, { reservation });
   }),
 );
 

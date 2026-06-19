@@ -3,15 +3,23 @@ import {
   CardContent,
   CardHeader,
 } from "@StayBook/ui/components/card";
+import { Button } from "@StayBook/ui/components/button";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { getErrorMessage } from "@/lib/api";
 import { getDefaultRoomsSearch } from "@/lib/dates";
 import { roomsQueryOptions, type RoomsSearch } from "@/lib/queries";
 import RoomCard from "@/components/room-card";
+import RoomFilters, {
+  countActiveFilters,
+  defaultRoomFilters,
+  filterRooms,
+  type RoomFiltersState,
+} from "@/components/room-filters";
 import RoomsSearchForm from "@/components/rooms-search-form";
 
 type RoomsRouteSearch = {
@@ -52,15 +60,43 @@ function RoomsComponent() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const effective = useMemo(() => effectiveSearch(search), [search]);
+  const [filters, setFilters] = useState<RoomFiltersState>(defaultRoomFilters);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const { data, error, isPending, isFetching } = useQuery(
     roomsQueryOptions(effective),
   );
-  const rooms = data?.rooms ?? [];
+  const allRooms = data?.rooms ?? [];
+  const filteredRooms = useMemo(
+    () => filterRooms(allRooms, filters),
+    [allRooms, filters],
+  );
   const errorMessage = error ? getErrorMessage(error) : null;
+  const activeFilterCount = countActiveFilters(filters);
+  const hasRooms = !isPending && allRooms.length > 0;
+
+  function resetFiltersOnSearchChange() {
+    if (activeFilterCount > 0) {
+      setFilters(defaultRoomFilters);
+    }
+  }
+
+  function handleFiltersChange(next: RoomFiltersState) {
+    setFilters(next);
+  }
+
+  const filtersPanel = hasRooms ? (
+    <RoomFilters
+      rooms={allRooms}
+      filters={filters}
+      onChange={handleFiltersChange}
+      resultCount={filteredRooms.length}
+      totalCount={allRooms.length}
+    />
+  ) : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-12">
       <section className="flex flex-col items-center text-center gap-8 py-4">
         <div className="flex flex-col gap-3 max-w-2xl">
           <h1 className="text-4xl sm:text-5xl font-heading text-foreground tracking-tight text-balance">
@@ -74,6 +110,7 @@ function RoomsComponent() {
         <RoomsSearchForm
           defaultValues={effective}
           onSubmit={(value) => {
+            resetFiltersOnSearchChange();
             void navigate({
               to: "/rooms",
               search: {
@@ -93,39 +130,125 @@ function RoomsComponent() {
         </div>
       ) : null}
 
-      <section className="grid gap-8 md:grid-cols-2 lg:grid-cols-3" style={{ gridAutoRows: '1fr' }} aria-live="polite">
-        {isPending
-          ? Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden border border-ghost-border rounded-lg">
-                <Skeleton className="aspect-[4/3] w-full" />
-                <CardHeader className="p-5 pb-2">
-                  <Skeleton className="h-6 w-2/3" />
-                  <Skeleton className="h-4 w-1/3 mt-2" />
-                </CardHeader>
-                <CardContent className="px-5 py-2 flex flex-col gap-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                </CardContent>
-              </Card>
-            ))
-          : null}
+      <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
+        {/* Desktop sidebar */}
+        <div className="hidden lg:block">
+          {hasRooms ? filtersPanel : isPending ? <FilterSkeleton /> : null}
+        </div>
 
-        {!isPending && rooms.length === 0 ? (
-          <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
-            No rooms match this search. Try fewer guests or a different date range.
-          </div>
-        ) : null}
+        <div className="flex flex-col gap-6 min-w-0">
+          {/* Mobile filter toggle */}
+          {hasRooms ? (
+            <div className="flex items-center justify-between gap-3 lg:hidden">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">{filteredRooms.length}</span> of{" "}
+                <span className="font-semibold text-foreground tabular-nums">{allRooms.length}</span> rooms
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMobileFiltersOpen((open) => !open)}
+                className="gap-2"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {activeFilterCount > 0 ? (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </Button>
+            </div>
+          ) : null}
 
-        {!isPending
-          ? rooms.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                searchParams={effective}
-              />
-            ))
-          : null}
-      </section>
+          {/* Mobile filter panel (collapsible) */}
+          {hasRooms && mobileFiltersOpen ? (
+            <div className="lg:hidden">
+              {filtersPanel}
+              <div className="mt-3 flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="gap-1.5"
+                >
+                  <X className="h-4 w-4" />
+                  Close filters
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <section
+            className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"
+            style={{ gridAutoRows: '1fr' }}
+            aria-live="polite"
+          >
+            {isPending
+              ? Array.from({ length: 6 }).map((_, index) => (
+                  <Card key={index} className="overflow-hidden border border-ghost-border rounded-xl">
+                    <Skeleton className="aspect-[4/3] w-full" />
+                    <CardHeader className="p-5 pb-2">
+                      <Skeleton className="h-5 w-2/3" />
+                      <Skeleton className="h-3 w-1/3 mt-2" />
+                    </CardHeader>
+                    <CardContent className="px-5 py-2 flex flex-col gap-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-4/5" />
+                    </CardContent>
+                  </Card>
+                ))
+              : null}
+
+            {!isPending && allRooms.length === 0 ? (
+              <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
+                No rooms match this search. Try fewer guests or a different date range.
+              </div>
+            ) : null}
+
+            {!isPending && allRooms.length > 0 && filteredRooms.length === 0 ? (
+              <div className="rounded-lg border border-ghost-border bg-card p-12 text-center text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
+                No rooms match your filters. Try adjusting or clearing them.
+              </div>
+            ) : null}
+
+            {!isPending
+              ? filteredRooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    searchParams={effective}
+                  />
+                ))
+              : null}
+          </section>
+        </div>
+      </div>
     </main>
+  );
+}
+
+function FilterSkeleton() {
+  return (
+    <aside
+      aria-hidden="true"
+      className="flex flex-col gap-6 rounded-xl border border-ghost-border bg-card p-5"
+    >
+      <Skeleton className="h-6 w-24" />
+      <Skeleton className="h-px w-full" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+      <Skeleton className="h-px w-full" />
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-5 w-1/2" />
+        <Skeleton className="h-5 w-2/3" />
+      </div>
+    </aside>
   );
 }
