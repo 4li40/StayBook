@@ -1,11 +1,11 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
-import { sessionQuery } from "@/lib/session-query";
+import { fetchCurrentSession } from "@/lib/session-query";
 
 export const Route = createFileRoute("/_staff")({
   component: StaffLayout,
   beforeLoad: async ({ context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQuery);
+    const session = await fetchCurrentSession(context.queryClient);
 
     if (!session) {
       throw redirect({

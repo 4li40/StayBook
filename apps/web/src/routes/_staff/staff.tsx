@@ -214,7 +214,7 @@ function RouteComponent() {
     () => Array.from(new Set(rooms.map((room) => room.type))).sort(),
     [rooms],
   );
-  const staffUser = session.data?.user;
+  const staffUser = session.user;
   const editingRoom = editingRoomId
     ? rooms.find((room) => room.id === editingRoomId)
     : null;
@@ -225,10 +225,6 @@ function RouteComponent() {
       appliedFilters.amenityId ||
       appliedFilters.search,
   );
-
-  if (!staffUser) {
-    return null;
-  }
 
   function updateFilterField<Key extends keyof RoomFilterForm>(
     key: Key,

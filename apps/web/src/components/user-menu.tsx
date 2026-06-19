@@ -12,6 +12,7 @@ import { Skeleton } from "@StayBook/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
+import { clearSession } from "@/lib/session-query";
 
 export default function UserMenu() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export default function UserMenu() {
               authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {
+                    clearSession();
                     navigate({
                       to: "/",
                     });

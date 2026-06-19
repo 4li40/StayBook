@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { refreshSession } from "@/lib/session-query";
 
 import Loader from "./loader";
 
@@ -35,9 +36,9 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         },
         {
           onSuccess: () => {
-            void authClient.getSession().then((session) => {
+            void refreshSession().then((session) => {
               navigate({
-                to: session.data?.user.role === "staff" ? "/staff" : "/rooms",
+                to: session?.user.role === "staff" ? "/staff" : "/rooms",
               });
             });
             toast.success("Sign in successful");

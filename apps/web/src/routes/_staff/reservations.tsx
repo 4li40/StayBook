@@ -153,7 +153,7 @@ function validateFilterForm(form: FilterForm): FilterFieldErrors {
 function RouteComponent() {
   const { session } = Route.useRouteContext();
   const queryClient = useQueryClient();
-  const staffUser = session.data?.user;
+  const staffUser = session.user;
 
   const [filterForm, setFilterForm] = useState<FilterForm>(emptyFilterForm);
   const [appliedFilters, setAppliedFilters] = useState<StaffReservationFilters>(
@@ -198,10 +198,6 @@ function RouteComponent() {
       { upcoming: 0, active: 0, past: 0, cancelled: 0 },
     );
   }, [reservations]);
-
-  if (!staffUser) {
-    return null;
-  }
 
   function updateFilterField<Key extends keyof FilterForm>(
     key: Key,

@@ -122,7 +122,7 @@ function RouteComponent() {
         <div className="flex flex-col gap-3">
           <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gold">
             <span aria-hidden="true" className="h-px w-8 bg-gold/50" />
-            Welcome, {session.data?.user.name}
+            Welcome, {session.user.name}
           </span>
           <h1 className="font-heading text-4xl md:text-5xl text-foreground tracking-tight leading-[1.1]">
             My Reservations

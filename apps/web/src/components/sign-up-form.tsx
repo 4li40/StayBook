@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { refreshSession } from "@/lib/session-query";
 
 import Loader from "./loader";
 
@@ -38,8 +39,10 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         },
         {
           onSuccess: () => {
-            navigate({
-              to: "/dashboard",
+            void refreshSession().then(() => {
+              navigate({
+                to: "/dashboard",
+              });
             });
             toast.success("Sign up successful");
           },
