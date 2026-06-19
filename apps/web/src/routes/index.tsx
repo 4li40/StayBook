@@ -290,11 +290,6 @@ function HomeComponent() {
                             </span>
                             <span className="text-xs text-muted-foreground/80 font-medium font-sans"> / night</span>
                           </div>
-                          {nights > 0 ? (
-                            <span className="text-xs font-semibold text-muted-foreground/85 tabular-nums">
-                              {formatCents(total)} total
-                            </span>
-                          ) : null}
                         </div>
                       )}
                     </CardFooter>
