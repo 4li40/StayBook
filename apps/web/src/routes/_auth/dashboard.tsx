@@ -397,8 +397,8 @@ function RouteComponent() {
             }
           }}
         >
-          <Card className="w-full max-w-lg overflow-hidden shadow-lg">
-            <CardHeader>
+          <Card className="flex max-h-[calc(100vh-4rem)] w-full max-w-lg shadow-lg">
+            <CardHeader className="shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <CardTitle id="cancel-reservation-title">
@@ -422,7 +422,7 @@ function RouteComponent() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
               <div className="flex flex-col gap-4">
                 {cancelError ? (
                   <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">

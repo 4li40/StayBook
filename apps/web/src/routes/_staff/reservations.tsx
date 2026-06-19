@@ -494,7 +494,14 @@ function RouteComponent() {
                   }
                 >
                   <SelectTrigger id="filter-room" className="w-full">
-                    <SelectValue placeholder="All rooms" />
+                    <SelectValue placeholder="All rooms">
+                      {(value: string | null) => {
+                        if (!value) return null;
+                        const room = rooms.find((r) => r.id === value);
+                        if (!room) return value;
+                        return `${room.name}${!room.active ? " (inactive)" : ""}`;
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All rooms</SelectItem>
@@ -638,7 +645,7 @@ function RouteComponent() {
                   <Skeleton className="h-5 w-1/3" />
                   <Skeleton className="h-4 w-1/2" />
                 </CardHeader>
-                <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
                   <Skeleton className="h-4 w-full" />
                 </CardContent>
               </Card>
@@ -822,7 +829,7 @@ function RouteComponent() {
 
       {cancellingReservation ? (
         <div
-          className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cancel-reservation-title"
@@ -832,8 +839,8 @@ function RouteComponent() {
             }
           }}
         >
-          <Card className="w-full max-w-lg overflow-hidden shadow-lg">
-            <CardHeader>
+          <Card className="flex max-h-[calc(100vh-4rem)] w-full max-w-lg shadow-lg">
+            <CardHeader className="shrink-0">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <CardTitle id="cancel-reservation-title">
