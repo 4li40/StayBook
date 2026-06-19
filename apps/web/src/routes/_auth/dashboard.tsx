@@ -1,9 +1,18 @@
 import { Button } from "@StayBook/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@StayBook/ui/components/card";
+import { Label } from "@StayBook/ui/components/label";
 import { Skeleton } from "@StayBook/ui/components/skeleton";
+import { Textarea } from "@StayBook/ui/components/textarea";
 import { PaginationControls } from "@/components/pagination-controls";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, BedDouble, CalendarClock, CalendarX, RefreshCw } from "lucide-react";
+import { ArrowRight, BedDouble, CalendarClock, CalendarX, RefreshCw, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -41,7 +50,12 @@ const TABS = [
 function RouteComponent() {
   const { session } = Route.useRouteContext();
   const queryClient = useQueryClient();
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancellingReservation, setCancellingReservation] =
+    useState<Reservation | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelFieldError, setCancelFieldError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"upcoming" | "active" | "past" | "cancelled" | "all">("upcoming");
   const reservationsQuery = useQuery(
@@ -58,33 +72,55 @@ function RouteComponent() {
     ? getErrorMessage(reservationsQuery.error)
     : null;
 
-  async function cancelReservation(reservation: Reservation) {
-    const confirmed = window.confirm(
-      `Cancel your reservation for ${reservation.room.name} on ${formatStayDate(
-        reservation.checkInDate,
-      )}?`,
-    );
+  function openCancelModal(reservation: Reservation) {
+    setCancellingReservation(reservation);
+    setCancellationReason("");
+    setCancelError(null);
+    setCancelFieldError(null);
+  }
 
-    if (!confirmed) {
+  function closeCancelModal() {
+    if (isCancelling) {
+      return;
+    }
+    setCancellingReservation(null);
+    setCancellationReason("");
+    setCancelError(null);
+    setCancelFieldError(null);
+  }
+
+  async function confirmCancellation() {
+    if (!cancellingReservation) {
       return;
     }
 
-    const reason = window.prompt("Cancellation reason");
-    setCancellingId(reservation.id);
+    const reason = cancellationReason.trim();
+    if (reason.length > 500) {
+      setCancelFieldError("Reason must be 500 characters or fewer.");
+      return;
+    }
+
+    setIsCancelling(true);
+    setCancelError(null);
+    setCancelFieldError(null);
 
     try {
-      await apiRequest(`/api/reservations/${reservation.id}/cancel`, {
-        method: "POST",
-        body: JSON.stringify({
-          cancellationReason: reason?.trim() || undefined,
-        }),
-      });
+      await apiRequest(
+        `/api/reservations/${cancellingReservation.id}/cancel`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            cancellationReason: reason || undefined,
+          }),
+        },
+      );
       toast.success("Reservation cancelled.");
       await queryClient.invalidateQueries({ queryKey: reservationKeys.mine() });
+      closeCancelModal();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      setCancelError(getErrorMessage(error));
     } finally {
-      setCancellingId(null);
+      setIsCancelling(false);
     }
   }
 
@@ -138,7 +174,7 @@ function RouteComponent() {
           disabled={isLoading || reservationsQuery.isFetching}
           className="cursor-pointer h-11 rounded-full px-6 text-xs font-semibold uppercase tracking-widest"
         >
-          <RefreshCw data-icon="inline-start" className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
       </header>
@@ -241,7 +277,7 @@ function RouteComponent() {
                       </div>
                     )}
                     <span
-                      className={`absolute top-3 left-3 rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] ${badge.className}`}
+                      className={`absolute top-3 left-3 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] shadow-md ${badge.className}`}
                     >
                       {badge.label}
                     </span>
@@ -318,11 +354,11 @@ function RouteComponent() {
                           <Button
                             type="button"
                             variant="destructive"
-                            onClick={() => cancelReservation(reservation)}
-                            disabled={reservation.status === "cancelled" || !isCancellable || cancellingId === reservation.id}
+                            onClick={() => openCancelModal(reservation)}
+                            disabled={reservation.status === "cancelled" || !isCancellable || (isCancelling && cancellingReservation?.id === reservation.id)}
                             className="cursor-pointer h-9 rounded-lg px-4 text-xs font-semibold uppercase tracking-wider"
                           >
-                            {cancellingId === reservation.id ? "Cancelling…" : "Cancel Reservation"}
+                            {isCancelling && cancellingReservation?.id === reservation.id ? "Cancelling…" : "Cancel Reservation"}
                           </Button>
                         </div>
                         {!isCancellable && reservation.status !== "cancelled" && reservation.state === "upcoming" && (
@@ -348,6 +384,105 @@ function RouteComponent() {
           />
         ) : null}
       </section>
+
+      {cancellingReservation ? (
+        <div
+          className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-background/80 px-4 py-8 backdrop-blur-sm z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-reservation-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeCancelModal();
+            }
+          }}
+        >
+          <Card className="w-full max-w-lg overflow-hidden shadow-lg">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <CardTitle id="cancel-reservation-title">
+                    Cancel Reservation
+                  </CardTitle>
+                  <CardDescription>
+                    {cancellingReservation.room.name} ·{" "}
+                    {formatStayDate(cancellingReservation.checkInDate)} to{" "}
+                    {formatStayDate(cancellingReservation.checkOutDate)}
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={closeCancelModal}
+                  disabled={isCancelling}
+                  aria-label="Close cancellation dialog"
+                >
+                  <X />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4">
+                {cancelError ? (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                    {cancelError}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="cancellation-reason">
+                    Cancellation reason{" "}
+                    <span className="text-xs text-muted-foreground">
+                      (optional)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="cancellation-reason"
+                    value={cancellationReason}
+                    onChange={(event) => {
+                      setCancellationReason(event.target.value);
+                      setCancelFieldError(null);
+                      setCancelError(null);
+                    }}
+                    aria-invalid={Boolean(cancelFieldError)}
+                    maxLength={500}
+                    placeholder="Note why this reservation is being cancelled."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {cancellationReason.length}/500
+                  </p>
+                  {cancelFieldError ? (
+                    <p className="text-xs text-destructive">
+                      {cancelFieldError}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={confirmCancellation}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? "Cancelling…" : "Confirm Cancellation"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeCancelModal}
+                    disabled={isCancelling}
+                  >
+                    <X data-icon="inline-start" />
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </main>
   );
 }

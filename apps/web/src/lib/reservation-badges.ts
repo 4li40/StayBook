@@ -31,7 +31,7 @@ export function reservationBadgePresentation(reservation: {
     return {
       label: "Cancelled",
       className:
-        "bg-destructive/15 text-destructive border-destructive shadow-sm",
+        "bg-destructive/15 text-destructive border-destructive shadow-sm backdrop-blur-sm",
     };
   }
 
@@ -40,25 +40,25 @@ export function reservationBadgePresentation(reservation: {
       return {
         label: "Active Stay",
         className:
-          "bg-gold-container text-on-gold-container border-gold-container shadow-sm",
+          "bg-gold-container text-on-gold-container border-gold-container shadow-sm backdrop-blur-sm",
       };
     case "upcoming":
       return {
         label: "Upcoming Stay",
         className:
-          "bg-tertiary-fixed text-on-tertiary-fixed border-tertiary-fixed shadow-sm",
+          "bg-tertiary-fixed text-on-tertiary-fixed border-tertiary-fixed shadow-sm backdrop-blur-sm",
       };
     case "past":
       return {
         label: "Past Stay",
         className:
-          "bg-muted-foreground text-background border-muted-foreground shadow-sm",
+          "bg-muted-foreground text-background border-muted-foreground shadow-sm backdrop-blur-sm",
       };
     case "cancelled":
       return {
         label: "Cancelled",
         className:
-          "bg-destructive/15 text-destructive border-destructive shadow-sm",
+          "bg-destructive/15 text-destructive border-destructive shadow-sm backdrop-blur-sm",
       };
   }
 }
