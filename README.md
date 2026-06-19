@@ -40,7 +40,7 @@ This project uses PostgreSQL with Drizzle ORM.
 4. Apply the migrations to your database:
 
    ```bash
-   npm run db:migrate
+   npm run db:push
    ```
 
 5. Seed room inventory, reviewer users, and sample reservations:
